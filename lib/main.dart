@@ -147,15 +147,13 @@ class _CallBootstrapHostState extends State<_CallBootstrapHost> {
           switch (event.event) {
             case Event.actionCallAccept:
               debugPrint('✅ User accepted call from CallKit');
-              // Navigate to call screen
-              if (mounted && rootNavigatorKey.currentState != null) {
-                rootNavigatorKey.currentState!.push(
-                  MaterialPageRoute(builder: (_) => const CallScreen()),
-                );
-              }
-              // Accept the call
               try {
                 await callService.acceptIncomingCall();
+                if (mounted && rootNavigatorKey.currentState != null) {
+                  rootNavigatorKey.currentState!.push(
+                    MaterialPageRoute(builder: (_) => const CallScreen()),
+                  );
+                }
               } catch (e) {
                 debugPrint('❌ Error accepting call: $e');
               }

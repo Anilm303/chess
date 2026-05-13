@@ -152,214 +152,236 @@ class _LoginScreenState extends State<LoginScreen> {
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(height: 40),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            return SingleChildScrollView(
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+              padding: const EdgeInsets.all(24.0),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    SizedBox(height: constraints.maxHeight > 700 ? 40 : 16),
 
-              // Header
-              Container(
-                decoration: const BoxDecoration(
-                  gradient: MessengerColors.messengerGradient,
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 12,
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Welcome Back',
-                        style: Theme.of(context).textTheme.headlineLarge
-                            ?.copyWith(
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                            ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Login to your chess account',
-                        style: Theme.of(
-                          context,
-                        ).textTheme.bodyLarge?.copyWith(color: Colors.white70),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 48),
-
-              Align(
-                alignment: Alignment.centerRight,
-                child: TextButton.icon(
-                  onPressed: () => _editBackendUrl(context),
-                  icon: const Icon(Icons.settings_outlined, size: 18),
-                  label: const Text('Backend URL'),
-                ),
-              ),
-
-              // Username field
-              TextField(
-                controller: _usernameController,
-                decoration: InputDecoration(
-                  labelText: 'Username',
-                  labelStyle: const TextStyle(
-                    color: Color(0xFF8A8D91),
-                    fontWeight: FontWeight.w600,
-                  ),
-                  hintText: 'Enter your username',
-                  prefixIcon: const Icon(Icons.person_outline),
-                  prefixIconColor: MessengerColors.messengerBlue,
-                  filled: true,
-                  fillColor: Theme.of(context).inputDecorationTheme.fillColor,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide.none,
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: Color(0xFFE5E5EA)),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(
-                      color: MessengerColors.messengerBlue,
-                      width: 2,
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 20),
-
-              // Password field
-              TextField(
-                controller: _passwordController,
-                obscureText: _obscurePassword,
-                decoration: InputDecoration(
-                  labelText: 'Password',
-                  labelStyle: const TextStyle(
-                    color: Color(0xFF8A8D91),
-                    fontWeight: FontWeight.w600,
-                  ),
-                  hintText: 'Enter your password',
-                  prefixIcon: const Icon(Icons.lock_outline),
-                  prefixIconColor: MessengerColors.messengerBlue,
-                  suffixIcon: IconButton(
-                    icon: Icon(
-                      _obscurePassword
-                          ? Icons.visibility_off
-                          : Icons.visibility,
-                      color: MessengerColors.messengerBlue,
-                    ),
-                    onPressed: () {
-                      setState(() {
-                        _obscurePassword = !_obscurePassword;
-                      });
-                    },
-                  ),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide.none,
-                  ),
-                  filled: true,
-                  fillColor: Theme.of(context).inputDecorationTheme.fillColor,
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: Color(0xFFE5E5EA)),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(
-                      color: MessengerColors.messengerBlue,
-                      width: 2,
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 32),
-
-              // Login button
-              SizedBox(
-                width: double.infinity,
-                height: 56,
-                child: Consumer<AuthService>(
-                  builder: (context, authService, _) {
-                    return Container(
-                      decoration: BoxDecoration(
+                    // Header
+                    Container(
+                      decoration: const BoxDecoration(
                         gradient: MessengerColors.messengerGradient,
-                        borderRadius: BorderRadius.circular(12),
-                        boxShadow: [
-                          BoxShadow(
-                            color: MessengerColors.messengerBlue.withOpacity(
-                              0.4,
-                            ),
-                            blurRadius: 8,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
                       ),
-                      child: Material(
-                        color: Colors.transparent,
-                        child: InkWell(
-                          onTap: authService.isLoading
-                              ? null
-                              : () => _login(context),
-                          borderRadius: BorderRadius.circular(12),
-                          child: Center(
-                            child: authService.isLoading
-                                ? const SizedBox(
-                                    width: 24,
-                                    height: 24,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      valueColor: AlwaysStoppedAnimation<Color>(
-                                        Colors.white,
-                                      ),
-                                    ),
-                                  )
-                                : const Text(
-                                    'Login',
-                                    style: TextStyle(
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.w600,
-                                      color: Colors.white,
-                                    ),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 12,
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Welcome Back',
+                              style: Theme.of(context).textTheme.headlineLarge
+                                  ?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
                                   ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Login to your chess account',
+                              style: Theme.of(context).textTheme.bodyLarge
+                                  ?.copyWith(color: Colors.white70),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    SizedBox(height: constraints.maxHeight > 700 ? 48 : 24),
+
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton.icon(
+                        onPressed: () => _editBackendUrl(context),
+                        icon: const Icon(Icons.settings_outlined, size: 18),
+                        label: const Text('Backend URL'),
+                      ),
+                    ),
+
+                    // Username field
+                    TextField(
+                      controller: _usernameController,
+                      decoration: InputDecoration(
+                        labelText: 'Username',
+                        labelStyle: const TextStyle(
+                          color: Color(0xFF8A8D91),
+                          fontWeight: FontWeight.w600,
+                        ),
+                        hintText: 'Enter your username',
+                        prefixIcon: const Icon(Icons.person_outline),
+                        prefixIconColor: MessengerColors.messengerBlue,
+                        filled: true,
+                        fillColor: Theme.of(
+                          context,
+                        ).inputDecorationTheme.fillColor,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide.none,
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(
+                            color: Color(0xFFE5E5EA),
+                          ),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(
+                            color: MessengerColors.messengerBlue,
+                            width: 2,
                           ),
                         ),
                       ),
-                    );
-                  },
-                ),
-              ),
-              const SizedBox(height: 20),
+                    ),
+                    const SizedBox(height: 20),
 
-              // Register link
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    "Don't have an account? ",
-                    style: TextStyle(color: Colors.grey[700]),
-                  ),
-                  GestureDetector(
-                    onTap: () => Navigator.of(context).pushNamed('/register'),
-                    child: Text(
-                      'Register',
-                      style: TextStyle(
-                        color: Colors.brown[400],
-                        fontWeight: FontWeight.w600,
+                    // Password field
+                    TextField(
+                      controller: _passwordController,
+                      obscureText: _obscurePassword,
+                      decoration: InputDecoration(
+                        labelText: 'Password',
+                        labelStyle: const TextStyle(
+                          color: Color(0xFF8A8D91),
+                          fontWeight: FontWeight.w600,
+                        ),
+                        hintText: 'Enter your password',
+                        prefixIcon: const Icon(Icons.lock_outline),
+                        prefixIconColor: MessengerColors.messengerBlue,
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            _obscurePassword
+                                ? Icons.visibility_off
+                                : Icons.visibility,
+                            color: MessengerColors.messengerBlue,
+                          ),
+                          onPressed: () {
+                            setState(() {
+                              _obscurePassword = !_obscurePassword;
+                            });
+                          },
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide.none,
+                        ),
+                        filled: true,
+                        fillColor: Theme.of(
+                          context,
+                        ).inputDecorationTheme.fillColor,
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(
+                            color: Color(0xFFE5E5EA),
+                          ),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(
+                            color: MessengerColors.messengerBlue,
+                            width: 2,
+                          ),
+                        ),
                       ),
                     ),
-                  ),
-                ],
+                    const SizedBox(height: 32),
+
+                    // Login button
+                    SizedBox(
+                      width: double.infinity,
+                      height: 56,
+                      child: Consumer<AuthService>(
+                        builder: (context, authService, _) {
+                          return Container(
+                            decoration: BoxDecoration(
+                              gradient: MessengerColors.messengerGradient,
+                              borderRadius: BorderRadius.circular(12),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: MessengerColors.messengerBlue
+                                      .withOpacity(0.4),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            child: Material(
+                              color: Colors.transparent,
+                              child: InkWell(
+                                onTap: authService.isLoading
+                                    ? null
+                                    : () => _login(context),
+                                borderRadius: BorderRadius.circular(12),
+                                child: Center(
+                                  child: authService.isLoading
+                                      ? const SizedBox(
+                                          width: 24,
+                                          height: 24,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                            valueColor:
+                                                AlwaysStoppedAnimation<Color>(
+                                                  Colors.white,
+                                                ),
+                                          ),
+                                        )
+                                      : const Text(
+                                          'Login',
+                                          style: TextStyle(
+                                            fontSize: 18,
+                                            fontWeight: FontWeight.w600,
+                                            color: Colors.white,
+                                          ),
+                                        ),
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+
+                    // Register link
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          "Don't have an account? ",
+                          style: TextStyle(color: Colors.grey[700]),
+                        ),
+                        GestureDetector(
+                          onTap: () =>
+                              Navigator.of(context).pushNamed('/register'),
+                          child: Text(
+                            'Register',
+                            style: TextStyle(
+                              color: Colors.brown[400],
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    SizedBox(
+                      height: MediaQuery.of(context).viewInsets.bottom > 0
+                          ? 24
+                          : 0,
+                    ),
+                  ],
+                ),
               ),
-            ],
-          ),
+            );
+          },
         ),
       ),
     );

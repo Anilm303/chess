@@ -34,7 +34,10 @@ class CallService extends ChangeNotifier {
   MediaStream? _localStream;
   final RTCVideoRenderer _localRenderer = RTCVideoRenderer();
   final Map<String, RTCVideoRenderer> _remoteRenderers = {};
+  final Set<RTCVideoRenderer> _initializedRenderers = {};
   final Map<String, RTCPeerConnection> _peerConnections = {};
+  final Set<String> _offeredPeers = <String>{};
+  final Set<String> _offerInProgress = <String>{};
   final List<CallParticipant> _participants = [];
   String? _error;
 
@@ -146,10 +149,30 @@ class CallService extends ChangeNotifier {
     }
   }
 
-  void _handleCallAccepted(dynamic data) {
+  Future<void> _handleCallAccepted(dynamic data) async {
     _log('✅ Call accepted by peer');
     _status = CallStatus.connecting;
     notifyListeners();
+
+    try {
+      final map = Map<String, dynamic>.from(data as Map);
+      final remoteUser = map['callee_username']?.toString() == _currentUsername
+          ? (map['caller_username']?.toString() ?? '')
+          : (map['callee_username']?.toString() ?? '');
+
+      if (remoteUser.isNotEmpty && remoteUser != _currentUsername) {
+        _log('📡 call_accepted fallback: create/send offer to $remoteUser');
+        _updateParticipant(
+          remoteUser,
+          displayName: map['callee_display_name']?.toString(),
+          profileImage: map['callee_profile_image']?.toString(),
+        );
+        await _createPeerConnection(remoteUser);
+        await _sendOffer(remoteUser);
+      }
+    } catch (e) {
+      _log('⚠️ call_accepted fallback failed: $e');
+    }
   }
 
   void _handleCallRejected(dynamic data) {
@@ -173,7 +196,9 @@ class CallService extends ChangeNotifier {
     );
     try {
       await _createPeerConnection(username);
-      await _sendOffer(username);
+      if (_isOutgoing) {
+        await _sendOffer(username);
+      }
     } catch (e) {
       _log('❌ Error in participant join: $e');
     }
@@ -208,6 +233,11 @@ class CallService extends ChangeNotifier {
         );
         try {
           await _createPeerConnection(username);
+          // Fallback: caller also sends offer from room-state to avoid
+          // relying only on participant-joined event ordering.
+          if (_isOutgoing) {
+            await _sendOffer(username);
+          }
         } catch (e) {
           _log('⚠️ Error creating peer for $username: $e');
         }
@@ -275,6 +305,10 @@ class CallService extends ChangeNotifier {
       await pc.setRemoteDescription(
         RTCSessionDescription(answerData['sdp']?.toString() ?? '', 'answer'),
       );
+      if (_status != CallStatus.connected) {
+        _status = CallStatus.connected;
+        _startCallDurationTimer();
+      }
       notifyListeners();
       _log('✅ Answer processed');
     } catch (e) {
@@ -532,7 +566,18 @@ class CallService extends ChangeNotifier {
       _log('🎙️ Audio: ${audioTracks.length}, 📹 Video: ${videoTracks.length}');
 
       await _localRenderer.initialize();
-      _localRenderer.srcObject = _localStream;
+      _initializedRenderers.add(_localRenderer);
+      try {
+        if (_initializedRenderers.contains(_localRenderer)) {
+          _localRenderer.srcObject = _localStream;
+        } else {
+          _log(
+            '⚠️ Local renderer not marked initialized, skipping srcObject set',
+          );
+        }
+      } catch (e) {
+        _log('⚠️ Could not set local renderer srcObject: $e');
+      }
 
       _audioEnabled = true;
       _videoEnabled = videoCall && videoTracks.isNotEmpty;
@@ -577,9 +622,53 @@ class CallService extends ChangeNotifier {
           {
             'urls': ['stun:stun1.l.google.com:19302'],
           },
+          // Added TURN Server for better connectivity
+          {
+            'urls': [
+              'turn:openrelay.metered.ca:80',
+              'turn:openrelay.metered.ca:443',
+              'turn:openrelay.metered.ca:443?transport=tcp',
+            ],
+            'username': 'openrelayproject',
+            'credential': 'openrelayproject',
+          },
         ],
         'sdpSemantics': 'unified-plan',
       });
+
+      pc.onIceConnectionState = (state) {
+        _log('🧊 ICE Connection State: $state');
+        if (state == RTCIceConnectionState.RTCIceConnectionStateConnected ||
+            state == RTCIceConnectionState.RTCIceConnectionStateCompleted) {
+          if (_status != CallStatus.connected) {
+            _status = CallStatus.connected;
+            _startCallDurationTimer();
+            notifyListeners();
+          }
+        }
+        if (state == RTCIceConnectionState.RTCIceConnectionStateDisconnected ||
+            state == RTCIceConnectionState.RTCIceConnectionStateFailed) {
+          _log(
+            '⚠️ Connection lost or failed. Triggering reconnect logic if possible.',
+          );
+          // You could add a reconnect event emit here.
+        }
+      };
+
+      pc.onConnectionState = (state) {
+        _log('🔌 PeerConnection state: $state');
+      };
+
+      pc.onSignalingState = (state) {
+        _log('📶 Signaling state: $state');
+      };
+
+      pc.onAddStream = (stream) async {
+        _log(
+          '📥 onAddStream for $remoteUser (tracks: ${stream.getTracks().length}, audio: ${stream.getAudioTracks().length}, video: ${stream.getVideoTracks().length})',
+        );
+        await _attachRemoteStream(remoteUser, stream, source: 'onAddStream');
+      };
 
       pc.onIceCandidate = (candidate) {
         _log('🧊 ICE candidate');
@@ -593,17 +682,57 @@ class CallService extends ChangeNotifier {
       };
 
       pc.onTrack = (event) async {
-        _log('📥 Track: ${event.track.kind}');
-        if (event.streams.isEmpty) return;
+        _log(
+          '📥 Track received: ${event.track.kind}, enabled=${event.track.enabled}',
+        );
+        _log('   Streams count: ${event.streams.length}');
+        _log('   Track ID: ${event.track.id}');
 
         if (!_remoteRenderers.containsKey(remoteUser)) {
+          _log('🎥 Creating renderer for $remoteUser');
           final renderer = RTCVideoRenderer();
-          await renderer.initialize();
-          _remoteRenderers[remoteUser] = renderer;
-          _log('🎥 Renderer created for $remoteUser');
+          try {
+            await renderer.initialize();
+            _remoteRenderers[remoteUser] = renderer;
+            _initializedRenderers.add(renderer);
+            _log('✅ Renderer initialized for $remoteUser');
+          } catch (e) {
+            _log('❌ Failed to initialize renderer: $e');
+            return;
+          }
         }
 
-        _remoteRenderers[remoteUser]!.srcObject = event.streams.first;
+        try {
+          if (event.streams.isEmpty) {
+            _log('⚠️ No streams in track event for ${event.track.kind}');
+            final syntheticStream = await createLocalMediaStream(
+              'remote_$remoteUser',
+            );
+            try {
+              syntheticStream.addTrack(event.track);
+              _log(
+                '✅ Created synthetic stream and attached ${event.track.kind}',
+              );
+            } catch (e) {
+              _log('❌ Failed to attach track to synthetic stream: $e');
+              return;
+            }
+            await _attachRemoteStream(
+              remoteUser,
+              syntheticStream,
+              source: 'onTrack/synthetic',
+            );
+          } else {
+            await _attachRemoteStream(
+              remoteUser,
+              event.streams.first,
+              source: 'onTrack',
+            );
+          }
+        } catch (e) {
+          _log('❌ Error setting srcObject: $e');
+        }
+
         _updateParticipant(remoteUser);
         if (_status != CallStatus.connected) {
           _status = CallStatus.connected;
@@ -614,9 +743,16 @@ class CallService extends ChangeNotifier {
 
       // Add local tracks
       _log('🎙️ Adding local tracks...');
-      _localStream?.getTracks().forEach((track) {
-        pc.addTrack(track, _localStream!);
-      });
+      final tracks = _localStream?.getTracks() ?? [];
+      for (final track in tracks) {
+        _log('   Adding ${track.kind} track (enabled=${track.enabled})');
+        try {
+          pc.addTrack(track, _localStream!);
+        } catch (e) {
+          _log('   ⚠️ Error adding track: $e');
+        }
+      }
+      _log('✅ Added ${tracks.length} tracks');
 
       _peerConnections[remoteUser] = pc;
       _log('✅ Peer created for $remoteUser');
@@ -627,17 +763,58 @@ class CallService extends ChangeNotifier {
     }
   }
 
+  Future<void> _attachRemoteStream(
+    String remoteUser,
+    MediaStream stream, {
+    required String source,
+  }) async {
+    final renderer = _remoteRenderers[remoteUser];
+    if (renderer == null) {
+      _log('⚠️ No renderer exists for $remoteUser while attaching stream');
+      return;
+    }
+
+    _log(
+      '📦 Attaching remote stream from $source for $remoteUser (tracks: ${stream.getTracks().length}, audio: ${stream.getAudioTracks().length}, video: ${stream.getVideoTracks().length})',
+    );
+    _log(
+      '   Track enabled states: audio=${stream.getAudioTracks().map((t) => t.enabled).toList()}, video=${stream.getVideoTracks().map((t) => t.enabled).toList()}',
+    );
+
+    if (_initializedRenderers.contains(renderer)) {
+      renderer.srcObject = stream;
+      _log('✅ srcObject set for $remoteUser via $source');
+      notifyListeners();
+    } else {
+      _log('❌ Renderer not in initialized set');
+    }
+  }
+
   Future<void> _sendOffer(String remoteUser) async {
     try {
+      if (_offeredPeers.contains(remoteUser)) {
+        _log('ℹ️ Offer already sent to $remoteUser, skipping duplicate');
+        return;
+      }
+      if (_offerInProgress.contains(remoteUser)) {
+        _log(
+          'ℹ️ Offer already in progress for $remoteUser, skipping duplicate',
+        );
+        return;
+      }
+      _offerInProgress.add(remoteUser);
       _log('📤 Sending offer to $remoteUser');
       final pc = _peerConnections[remoteUser];
       if (pc == null) {
         _log('❌ No peer for offer to $remoteUser');
+        _offerInProgress.remove(remoteUser);
         return;
       }
 
       final offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
+
+      _offeredPeers.add(remoteUser);
 
       _socket?.emit('call_offer', {
         'to': remoteUser,
@@ -647,6 +824,8 @@ class CallService extends ChangeNotifier {
       _log('✅ Offer sent');
     } catch (e) {
       _log('❌ Offer failed: $e');
+    } finally {
+      _offerInProgress.remove(remoteUser);
     }
   }
 
@@ -683,6 +862,8 @@ class CallService extends ChangeNotifier {
       _log('⚠️ Error disposing peer connection for $username: $e');
     }
     _peerConnections.remove(username);
+    _offeredPeers.remove(username);
+    _offerInProgress.remove(username);
 
     try {
       _remoteRenderers[username]?.dispose();
@@ -707,11 +888,14 @@ class CallService extends ChangeNotifier {
       }
     }
     _peerConnections.clear();
+    _offeredPeers.clear();
+    _offerInProgress.clear();
 
     // Dispose remote renderers safely
     for (final renderer in _remoteRenderers.values) {
       try {
         await renderer.dispose();
+        _initializedRenderers.remove(renderer);
       } catch (e) {
         _log('⚠️ Error disposing remote renderer: $e');
       }
@@ -760,7 +944,8 @@ class CallService extends ChangeNotifier {
   Future<void> disconnect() async {
     _log('📴 Disconnecting call service');
     await _cleanupCall();
-    _localRenderer.srcObject = null;
+    // Note: Do NOT set srcObject here. _cleanupCall() has already cleaned up
+    // the stream. Trying to set srcObject after cleanup can cause renderer errors.
     _socket?.disconnect();
     _socket?.dispose();
     _socket = null;

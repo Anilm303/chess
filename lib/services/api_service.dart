@@ -7,6 +7,9 @@ import '../models/user_model.dart';
 
 class ApiService {
   static const String _prefsKeyBaseUrlOverride = 'api_base_url_override';
+  static const Set<String> _knownLegacyBadBaseUrls = {
+    'http://192.168.1.3:7860/api',
+  };
 
   // Override this when building for a physical device, for example:
   // flutter run --dart-define=API_BASE_URL=http://192.168.1.100:5000/api
@@ -19,10 +22,10 @@ class ApiService {
   static String? _cachedSuccessfulBaseUrl;
 
   // Default to local backend for development
-  // For Real Device on WiFi: 192.168.1.3:7860 (primary)
+  // For Real Device on WiFi: set this to the backend host IP.
   // For Android Emulator: 10.0.2.2:7860 (fallback)
   static const String _defaultPhysicalDeviceBaseUrl =
-      'http://192.168.1.3:7860/api'; // Real device on local WiFi
+      'http://192.168.1.20:7860/api'; // Real device on local WiFi
 
   static String _webDefaultBaseUrl() {
     final host = Uri.base.host.trim();
@@ -37,7 +40,39 @@ class ApiService {
     final stored = _normalizeBaseUrl(
       prefs.getString(_prefsKeyBaseUrlOverride) ?? '',
     );
-    _runtimeBaseUrlOverride = stored.isEmpty ? null : stored;
+
+    if (_knownLegacyBadBaseUrls.contains(stored)) {
+      if (kDebugMode) {
+        print('🧹 Clearing legacy bad base URL override: $stored');
+      }
+      _runtimeBaseUrlOverride = null;
+      await prefs.remove(_prefsKeyBaseUrlOverride);
+      _logConfigSnapshot(reason: 'legacy_override_cleared');
+      return;
+    }
+
+    if (stored.isEmpty) {
+      _runtimeBaseUrlOverride = null;
+      _logConfigSnapshot(reason: 'no_stored_override');
+      return;
+    }
+
+    try {
+      final response = await http
+          .get(Uri.parse('$stored/auth/health'))
+          .timeout(const Duration(seconds: 2));
+      if (response.statusCode == 200) {
+        _runtimeBaseUrlOverride = stored;
+        _logConfigSnapshot(reason: 'stored_override_ok');
+        return;
+      }
+    } catch (_) {
+      // Ignore and fall back to detected/default candidates below.
+    }
+
+    _runtimeBaseUrlOverride = null;
+    await prefs.remove(_prefsKeyBaseUrlOverride);
+    _logConfigSnapshot(reason: 'stored_override_removed');
   }
 
   static Future<void> setBaseUrlOverride(String? url) async {
@@ -106,9 +141,10 @@ class ApiService {
         'http://127.0.0.1:7860/api',
       ] else ...[
         // Try WiFi IP first (for real devices)
-        'http://192.168.1.3:7860/api',
+        _defaultPhysicalDeviceBaseUrl,
         // Then try emulator IP (for Android emulator)
         'http://10.0.2.2:7860/api',
+        'http://127.0.0.1:7860/api',
       ],
     ];
 
@@ -121,6 +157,19 @@ class ApiService {
     }
     _cachedSuccessfulBaseUrl = null;
     return normalized;
+  }
+
+  static void _logConfigSnapshot({required String reason}) {
+    if (!kDebugMode) return;
+    final configured = _normalizeBaseUrl(_configuredBaseUrl);
+    final candidates = _candidateBaseUrls();
+    print('🌐 ApiService config snapshot [$reason]');
+    print('   runtimeOverride=$_runtimeBaseUrlOverride');
+    print(
+      '   configuredBaseUrl=${configured.isEmpty ? '(empty)' : configured}',
+    );
+    print('   selectedBaseUrl=$baseUrl');
+    print('   candidates=${candidates.join(', ')}');
   }
 
   static String _candidateUrlsMessage() {
@@ -146,7 +195,7 @@ class ApiService {
         '1. Backend is running and reachable from the phone\n'
         '2. The Android device is on the same WiFi as the backend\n'
         '3. API_BASE_URL points to the correct machine IP or use the in-app backend URL setting\n'
-        '4. If the phone is USB-connected, run: adb reverse tcp:5000 tcp:5000 and use http://127.0.0.1:5000/api';
+        '4. If the phone is USB-connected, run: adb reverse tcp:7860 tcp:7860 and use http://127.0.0.1:7860/api';
   }
 
   static Future<http.Response> _tryPost(

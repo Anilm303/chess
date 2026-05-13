@@ -17,6 +17,8 @@ class IncomingCallScreen extends StatefulWidget {
 class _IncomingCallScreenState extends State<IncomingCallScreen>
     with SingleTickerProviderStateMixin {
   late AnimationController _scaleController;
+  CallInvitation? _callSnapshot;
+  bool _dismissScheduled = false;
 
   @override
   void initState() {
@@ -25,6 +27,13 @@ class _IncomingCallScreenState extends State<IncomingCallScreen>
       duration: const Duration(milliseconds: 500),
       vsync: this,
     )..repeat(reverse: true);
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final callService = context.read<CallService>();
+      _callSnapshot = callService.incomingCall;
+      setState(() {});
+    });
   }
 
   @override
@@ -38,15 +47,24 @@ class _IncomingCallScreenState extends State<IncomingCallScreen>
     return Consumer<CallService>(
       builder: (context, callService, _) {
         final call = callService.incomingCall;
-        if (call == null) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (mounted) Navigator.of(context).maybePop();
-          });
+        if (callService.status == CallStatus.idle ||
+            callService.status == CallStatus.ended ||
+            callService.status == CallStatus.rejected) {
+          if (!_dismissScheduled) {
+            _dismissScheduled = true;
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted) Navigator.of(context).maybePop();
+            });
+          }
+        } else {
+          _dismissScheduled = false;
         }
 
-        final displayName = (call?.callerDisplayName.isNotEmpty ?? false)
-            ? call!.callerDisplayName
-            : call?.callerUsername ?? 'Unknown';
+        final activeCall = call ?? _callSnapshot;
+
+        final displayName = (activeCall?.callerDisplayName.isNotEmpty ?? false)
+            ? activeCall!.callerDisplayName
+            : activeCall?.callerUsername ?? 'Unknown';
 
         return Scaffold(
           backgroundColor: const Color(0xFF1E1E1E),
@@ -59,7 +77,7 @@ class _IncomingCallScreenState extends State<IncomingCallScreen>
                 Column(
                   children: [
                     Text(
-                      call?.isVideo == true ? 'Video Call' : 'Voice Call',
+                      activeCall?.isVideo == true ? 'Video Call' : 'Voice Call',
                       style: const TextStyle(
                         color: Colors.grey,
                         fontSize: 16,
@@ -85,7 +103,7 @@ class _IncomingCallScreenState extends State<IncomingCallScreen>
                           ),
                         ),
                         child: _buildAvatar(
-                          call?.callerProfileImage,
+                          activeCall?.callerProfileImage,
                           displayName,
                         ),
                       ),
@@ -104,7 +122,7 @@ class _IncomingCallScreenState extends State<IncomingCallScreen>
                     const SizedBox(height: 8),
                     // Status
                     Text(
-                      call?.isVideo == true
+                      activeCall?.isVideo == true
                           ? 'Incoming video call'
                           : 'Incoming call',
                       style: TextStyle(
@@ -166,15 +184,15 @@ class _IncomingCallScreenState extends State<IncomingCallScreen>
                       // Accept button
                       GestureDetector(
                         onTap: () async {
-                          // Navigate to call screen first
-                          Navigator.of(context).pushReplacement(
-                            MaterialPageRoute(
-                              builder: (_) => const CallScreen(),
-                            ),
-                          );
-                          // Then accept the call
                           try {
                             await callService.acceptIncomingCall();
+                            if (mounted) {
+                              Navigator.of(context).pushReplacement(
+                                MaterialPageRoute(
+                                  builder: (_) => const CallScreen(),
+                                ),
+                              );
+                            }
                           } catch (e) {
                             debugPrint('Error accepting call: $e');
                             if (mounted) {

@@ -14,6 +14,17 @@ class StoryService extends ChangeNotifier {
   bool get isLoading => _isLoading;
   String? get error => _error;
 
+  void _log(String message) {
+    debugPrint('📖 StoryService: $message');
+  }
+
+  void _logResponse(String action, http.Response response) {
+    final body = response.body;
+    final preview = body.length > 300 ? '${body.substring(0, 300)}...' : body;
+    debugPrint('📖 StoryService: $action -> ${response.statusCode}');
+    debugPrint('📖 StoryService: $action body: $preview');
+  }
+
   /// Fetch all active stories
   Future<bool> fetchStories(String accessToken) async {
     _isLoading = true;
@@ -21,15 +32,18 @@ class StoryService extends ChangeNotifier {
     notifyListeners();
 
     try {
+      final url = Uri.parse('${ApiService.baseUrl}/stories/active');
+      _log('GET $url');
       final response = await http
           .get(
-            Uri.parse('${ApiService.baseUrl}/stories/active'),
+            url,
             headers: {
               'Authorization': 'Bearer $accessToken',
               'Content-Type': 'application/json',
             },
           )
           .timeout(const Duration(seconds: 30));
+      _logResponse('GET /stories/active', response);
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
@@ -47,10 +61,12 @@ class StoryService extends ChangeNotifier {
       }
 
       _error = 'Failed to fetch stories';
+      _log(_error!);
       notifyListeners();
       return false;
     } catch (e) {
       _error = 'Error: $e';
+      _log(_error!);
       notifyListeners();
       return false;
     } finally {
@@ -70,9 +86,11 @@ class StoryService extends ChangeNotifier {
     notifyListeners();
 
     try {
+      final url = Uri.parse('${ApiService.baseUrl}/stories/upload');
+      _log('POST $url mediaType=$mediaType');
       final response = await http
           .post(
-            Uri.parse('${ApiService.baseUrl}/stories/upload'),
+            url,
             headers: {
               'Authorization': 'Bearer $accessToken',
               'Content-Type': 'application/json',
@@ -83,6 +101,7 @@ class StoryService extends ChangeNotifier {
             }),
           )
           .timeout(const Duration(seconds: 60));
+      _logResponse('POST /stories/upload', response);
 
       if (response.statusCode == 201) {
         final data = jsonDecode(response.body);
@@ -96,10 +115,12 @@ class StoryService extends ChangeNotifier {
       }
 
       _error = 'Failed to upload story';
+      _log(_error!);
       notifyListeners();
       return false;
     } catch (e) {
       _error = 'Error: $e';
+      _log(_error!);
       notifyListeners();
       return false;
     } finally {
@@ -120,17 +141,15 @@ class StoryService extends ChangeNotifier {
 
     try {
       final uri = Uri.parse('${ApiService.baseUrl}/stories/upload');
-      print('📤 Story upload started');
-      print('📁 File: ${file.name}, Size: ${await file.length()} bytes');
-      print('🎬 Media type: $mediaType');
-      print('🌐 URL: $uri');
+      _log('POST $uri mediaType=$mediaType file=${file.name}');
+      _log('File size: ${await file.length()} bytes');
 
       final request = http.MultipartRequest('POST', uri);
       request.headers['Authorization'] = 'Bearer $accessToken';
       request.fields['media_type'] = mediaType;
 
       final bytes = await file.readAsBytes();
-      print('✅ File read: ${bytes.length} bytes');
+      _log('File read: ${bytes.length} bytes');
 
       final multipartFile = http.MultipartFile.fromBytes(
         'media',
@@ -139,26 +158,25 @@ class StoryService extends ChangeNotifier {
       );
       request.files.add(multipartFile);
 
-      print('⏳ Sending request...');
+      _log('Sending multipart request...');
       final streamed = await request.send().timeout(
         const Duration(seconds: 120),
       );
       final response = await http.Response.fromStream(streamed);
 
-      print('📥 Response Status: ${response.statusCode}');
-      print('📝 Response Body: ${response.body}');
+      _logResponse('MULTIPART POST /stories/upload', response);
 
       if (response.statusCode == 201) {
         final data = jsonDecode(response.body);
         if (data['success'] == true) {
-          print('✅ Story uploaded successfully!');
+          _log('Story uploaded successfully');
           _error = null;
           await fetchStories(accessToken);
           notifyListeners();
           return true;
         } else {
           _error = data['message'] ?? 'Upload failed';
-          print('❌ Server error: $_error');
+          _log('Server error: $_error');
         }
       } else {
         try {
@@ -176,13 +194,13 @@ class StoryService extends ChangeNotifier {
                 'Server error (${response.statusCode}). ${response.body.length > 100 ? response.body.substring(0, 100) + '...' : response.body}';
           }
         }
-        print('❌ Upload error: $_error');
+        _log('Upload error: $_error');
       }
       notifyListeners();
       return false;
     } catch (e) {
       _error = 'Network error: $e';
-      print('❌ Exception: $e');
+      _log('Exception: $e');
       notifyListeners();
       return false;
     } finally {

@@ -8,6 +8,7 @@ import '../services/auth_service.dart';
 import '../services/message_service.dart';
 import '../services/theme_service.dart';
 import 'messaging_screen.dart';
+import '../features/face_liveness/presentation/screens/liveness_permission_screen.dart';
 
 class ChessBoardScreen extends StatefulWidget {
   const ChessBoardScreen({super.key});
@@ -117,6 +118,17 @@ class _ChessBoardScreenState extends State<ChessBoardScreen> {
             ),
           ),
           const NotificationBell(),
+          IconButton(
+            tooltip: 'Face Liveness',
+            icon: const Icon(Icons.verified_user_outlined),
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const LivenessPermissionScreen(),
+                ),
+              );
+            },
+          ),
           Consumer<ThemeService>(
             builder: (context, themeService, _) {
               final isDarkMode = themeService.isDarkMode;

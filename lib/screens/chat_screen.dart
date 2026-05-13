@@ -765,24 +765,39 @@ class _ChatScreenState extends State<ChatScreen> {
               if (fullMediaUrl != null)
                 ClipRRect(
                   borderRadius: BorderRadius.circular(12),
-                  child: Container(
-                    color: Colors.black,
-                    child: msg.messageType == 'image'
-                        ? Image.network(fullMediaUrl, fit: BoxFit.cover)
-                        : Padding(
-                            padding: const EdgeInsets.all(10),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const Icon(Icons.videocam, color: Colors.white),
-                                const SizedBox(width: 8),
-                                Text(
-                                  'Video attachment',
-                                  style: const TextStyle(color: Colors.white),
-                                ),
-                              ],
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                      // Keep media previews reasonable in chat bubbles
+                      maxWidth: MediaQuery.of(context).size.width * 0.72,
+                      maxHeight: 240,
+                    ),
+                    child: Container(
+                      color: Colors.black,
+                      child: msg.messageType == 'image'
+                          ? Image.network(
+                              fullMediaUrl,
+                              fit: BoxFit.cover,
+                              width: double.infinity,
+                              height: double.infinity,
+                            )
+                          : Padding(
+                              padding: const EdgeInsets.all(10),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(
+                                    Icons.videocam,
+                                    color: Colors.white,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    'Video attachment',
+                                    style: const TextStyle(color: Colors.white),
+                                  ),
+                                ],
+                              ),
                             ),
-                          ),
+                    ),
                   ),
                 ),
             ],
@@ -804,7 +819,9 @@ class _ChatScreenState extends State<ChatScreen> {
     }
 
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: isMe
+          ? CrossAxisAlignment.end
+          : CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
         body,
@@ -832,14 +849,11 @@ class _ChatScreenState extends State<ChatScreen> {
         ],
         if (statusLabel != null) ...[
           const SizedBox(height: 4),
-          Align(
-            alignment: Alignment.centerRight,
-            child: Text(
-              statusLabel,
-              style: TextStyle(
-                fontSize: 11,
-                color: Colors.white.withOpacity(0.85),
-              ),
+          Text(
+            statusLabel,
+            style: TextStyle(
+              fontSize: 11,
+              color: Colors.white.withOpacity(0.85),
             ),
           ),
         ],

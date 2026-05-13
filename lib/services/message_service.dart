@@ -59,6 +59,20 @@ class MessageService extends ChangeNotifier {
       _conversations.fold<int>(0, (sum, item) => sum + item.unreadCount) +
       _groups.fold<int>(0, (sum, item) => sum + item.unreadCount);
 
+  void _logHttp(String message) {
+    debugPrint('💬 MessageService: $message');
+  }
+
+  void _logHttpResponse(String action, http.Response response) {
+    final body = response.body;
+    final preview = body.length > 300 ? '${body.substring(0, 300)}...' : body;
+    debugPrint(
+      '💬 MessageService: $action -> ${response.statusCode} ${response.reasonPhrase ?? ''}'
+          .trim(),
+    );
+    debugPrint('💬 MessageService: $action body: $preview');
+  }
+
   DateTime? _parseDateTime(String? timestamp) {
     if (timestamp == null || timestamp.isEmpty) return null;
     try {
@@ -353,6 +367,9 @@ class MessageService extends ChangeNotifier {
     _socket?.disconnect();
     _socket?.dispose();
     final socketBaseUrl = ApiService.baseUrl.replaceAll('/api', '');
+    _logHttp(
+      'Connecting socket to $socketBaseUrl (forceReconnect=$forceReconnect)',
+    );
     _setSocketState(
       connecting: true,
       connected: false,
@@ -368,6 +385,7 @@ class MessageService extends ChangeNotifier {
     );
     _socket!
       ..onConnect((_) {
+        _logHttp('Socket connected (id=${_socket?.id})');
         _setSocketState(
           connecting: false,
           connected: true,
@@ -375,6 +393,7 @@ class MessageService extends ChangeNotifier {
         );
       })
       ..onDisconnect((_) {
+        _logHttp('Socket disconnected');
         _setSocketState(
           connecting: false,
           connected: false,
@@ -387,7 +406,7 @@ class MessageService extends ChangeNotifier {
           connected: false,
           status: 'Connection failed',
         );
-        debugPrint('Socket connect error: $error');
+        _logHttp('Socket connect error: $error');
       })
       ..onError((error) {
         _setSocketState(
@@ -395,9 +414,10 @@ class MessageService extends ChangeNotifier {
           connected: false,
           status: 'Socket error',
         );
-        debugPrint('Socket error: $error');
+        _logHttp('Socket error: $error');
       })
       ..onReconnectAttempt((_) {
+        _logHttp('Socket reconnect attempt');
         _setSocketState(
           connecting: true,
           connected: false,
@@ -405,6 +425,7 @@ class MessageService extends ChangeNotifier {
         );
       })
       ..onReconnect((_) {
+        _logHttp('Socket reconnected');
         _setSocketState(
           connecting: false,
           connected: true,
@@ -412,6 +433,7 @@ class MessageService extends ChangeNotifier {
         );
       })
       ..onReconnectFailed((_) {
+        _logHttp('Socket reconnect failed');
         _setSocketState(
           connecting: false,
           connected: false,
@@ -419,6 +441,7 @@ class MessageService extends ChangeNotifier {
         );
       })
       ..on('user_online', (data) {
+        _logHttp('Socket event user_online: $data');
         if (data is Map) {
           final username = data['username']?.toString();
           if (username != null && username.isNotEmpty) {
@@ -427,6 +450,7 @@ class MessageService extends ChangeNotifier {
         }
       })
       ..on('user_offline', (data) {
+        _logHttp('Socket event user_offline: $data');
         if (data is Map) {
           final username = data['username']?.toString();
           if (username != null && username.isNotEmpty) {
@@ -435,6 +459,7 @@ class MessageService extends ChangeNotifier {
         }
       })
       ..on('message_deleted', (data) {
+        _logHttp('Socket event message_deleted: $data');
         if (data is Map) {
           final messageId = data['message_id']?.toString();
           final conversationWith = data['conversation_with']?.toString();
@@ -454,6 +479,7 @@ class MessageService extends ChangeNotifier {
         }
       })
       ..on('message_reaction', (data) {
+        _logHttp('Socket event message_reaction: $data');
         if (data is Map) {
           final messageId = data['message_id']?.toString();
           final conversationWith = data['conversation_with']?.toString();
@@ -484,6 +510,7 @@ class MessageService extends ChangeNotifier {
         }
       })
       ..on('message_received', (data) async {
+        _logHttp('Socket event message_received: $data');
         if (data is! Map) return;
         final payload = Map<String, dynamic>.from(data);
         final message = Message.fromJson(payload);
@@ -509,6 +536,7 @@ class MessageService extends ChangeNotifier {
         notifyListeners();
       })
       ..on('group_message_received', (data) async {
+        _logHttp('Socket event group_message_received: $data');
         if (data is! Map) return;
         final payload = Map<String, dynamic>.from(data);
         final groupId = payload['group_id']?.toString();
@@ -522,6 +550,7 @@ class MessageService extends ChangeNotifier {
         notifyListeners();
       })
       ..on('user_typing', (data) {
+        _logHttp('Socket event user_typing: $data');
         if (data is! Map) return;
         final payload = Map<String, dynamic>.from(data);
         final sender = payload['sender']?.toString();
@@ -531,6 +560,7 @@ class MessageService extends ChangeNotifier {
         }
       })
       ..on('group_user_typing', (data) {
+        _logHttp('Socket event group_user_typing: $data');
         if (data is! Map) return;
         final payload = Map<String, dynamic>.from(data);
         final username = payload['username']?.toString();
@@ -544,6 +574,7 @@ class MessageService extends ChangeNotifier {
         }
       })
       ..on('message_read', (data) {
+        _logHttp('Socket event message_read: $data');
         if (data is! Map) return;
         final payload = Map<String, dynamic>.from(data);
         final senderUsername = payload['sender_username']?.toString() ?? '';
@@ -564,6 +595,7 @@ class MessageService extends ChangeNotifier {
         }
       })
       ..on('message_delivered', (data) {
+        _logHttp('Socket event message_delivered: $data');
         if (data is! Map) return;
         final payload = Map<String, dynamic>.from(data);
         final conversationWith = payload['conversation_with']?.toString() ?? '';
@@ -582,6 +614,7 @@ class MessageService extends ChangeNotifier {
         }
       })
       ..on('message_seen', (data) {
+        _logHttp('Socket event message_seen: $data');
         if (data is! Map) return;
         final payload = Map<String, dynamic>.from(data);
         final conversationWith = payload['conversation_with']?.toString() ?? '';
@@ -646,7 +679,7 @@ class MessageService extends ChangeNotifier {
 
     try {
       final url = '${ApiService.baseUrl}/messages/users';
-      print('🌐 Fetching all users from: $url');
+      _logHttp('GET $url');
 
       final response = await http
           .get(
@@ -655,13 +688,13 @@ class MessageService extends ChangeNotifier {
           )
           .timeout(ApiService.timeout);
 
-      print('📥 Fetch Users Status: ${response.statusCode}');
+      _logHttpResponse('GET /messages/users', response);
 
       if (response.statusCode == 200) {
         final json = jsonDecode(response.body);
         if (json['success'] == true) {
           final List usersData = json['users'] as List;
-          print('✅ Successfully fetched ${usersData.length} users');
+          _logHttp('Fetched ${usersData.length} users');
 
           _allUsers = usersData
               .map((u) => ChatUser.fromJson(u as Map<String, dynamic>))
@@ -679,16 +712,16 @@ class MessageService extends ChangeNotifier {
           return true;
         } else {
           _error = json['message'] ?? 'Failed to fetch users';
-          print('❌ Server error: $_error');
+          _logHttp('Server error: $_error');
         }
       } else {
         _error = 'Server error: ${response.statusCode}';
-        print('❌ HTTP error: ${response.statusCode} - ${response.body}');
+        _logHttp('HTTP error: ${response.statusCode} - ${response.body}');
       }
     } catch (e) {
       _error =
           'Connection failed. Please check if backend is running at ${ApiService.baseUrl}';
-      print('❌ Network error in fetchAllUsers: $e');
+      _logHttp('Network error in fetchAllUsers: $e');
     }
 
     _isLoading = false;
@@ -703,7 +736,7 @@ class MessageService extends ChangeNotifier {
 
     try {
       final url = '${ApiService.baseUrl}/messages/conversations';
-      print('🌐 Fetching conversations from: $url');
+      _logHttp('GET $url');
 
       final response = await http
           .get(
@@ -712,13 +745,13 @@ class MessageService extends ChangeNotifier {
           )
           .timeout(ApiService.timeout);
 
-      print('📥 Fetch Conversations Status: ${response.statusCode}');
+      _logHttpResponse('GET /messages/conversations', response);
 
       if (response.statusCode == 200) {
         final json = jsonDecode(response.body);
         if (json['success'] == true) {
           final List convData = json['conversations'] as List;
-          print('✅ Successfully fetched ${convData.length} conversations');
+          _logHttp('Fetched ${convData.length} conversations');
 
           _conversations = convData
               .map((c) => ChatUser.fromJson(c as Map<String, dynamic>))
@@ -739,15 +772,15 @@ class MessageService extends ChangeNotifier {
           return true;
         } else {
           _error = json['message'] ?? 'Failed to fetch conversations';
-          print('❌ Server error: $_error');
+          _logHttp('Server error: $_error');
         }
       } else {
         _error = 'Server error: ${response.statusCode}';
-        print('❌ HTTP error: ${response.statusCode} - ${response.body}');
+        _logHttp('HTTP error: ${response.statusCode} - ${response.body}');
       }
     } catch (e) {
       _error = 'Connection failed: $e';
-      print('❌ Network error in fetchConversations: $e');
+      _logHttp('Network error in fetchConversations: $e');
     }
 
     _isLoading = false;
@@ -944,12 +977,15 @@ class MessageService extends ChangeNotifier {
 
   Future<bool> fetchConversation(String otherUser, String accessToken) async {
     try {
+      final url = '${ApiService.baseUrl}/messages/conversation/$otherUser';
+      _logHttp('GET $url');
       final response = await http
           .get(
-            Uri.parse('${ApiService.baseUrl}/messages/conversation/$otherUser'),
+            Uri.parse(url),
             headers: {'Authorization': 'Bearer $accessToken'},
           )
           .timeout(ApiService.timeout);
+      _logHttpResponse('GET /messages/conversation/$otherUser', response);
 
       if (response.statusCode == 200) {
         final json = jsonDecode(response.body);
@@ -957,11 +993,16 @@ class MessageService extends ChangeNotifier {
           _currentConversation = (json['messages'] as List)
               .map((m) => Message.fromJson(m as Map<String, dynamic>))
               .toList();
-          await http.put(
-            Uri.parse(
-              '${ApiService.baseUrl}/messages/conversation/$otherUser/mark-read',
-            ),
+          final markReadUrl =
+              '${ApiService.baseUrl}/messages/conversation/$otherUser/mark-read';
+          _logHttp('PUT $markReadUrl');
+          final markReadResponse = await http.put(
+            Uri.parse(markReadUrl),
             headers: {'Authorization': 'Bearer $accessToken'},
+          );
+          _logHttpResponse(
+            'PUT /messages/conversation/$otherUser/mark-read',
+            markReadResponse,
           );
           _directTypingUser = null;
           notifyListeners();
@@ -1001,6 +1042,7 @@ class MessageService extends ChangeNotifier {
       return false;
     } catch (e) {
       _error = 'Error fetching conversation: $e';
+      _logHttp(_error!);
       notifyListeners();
       return false;
     }
@@ -1011,14 +1053,15 @@ class MessageService extends ChangeNotifier {
     String accessToken,
   ) async {
     try {
+      final url = '${ApiService.baseUrl}/messages/groups/$groupId/messages';
+      _logHttp('GET $url');
       final response = await http
           .get(
-            Uri.parse(
-              '${ApiService.baseUrl}/messages/groups/$groupId/messages',
-            ),
+            Uri.parse(url),
             headers: {'Authorization': 'Bearer $accessToken'},
           )
           .timeout(ApiService.timeout);
+      _logHttpResponse('GET /messages/groups/$groupId/messages', response);
       if (response.statusCode == 200) {
         final json = jsonDecode(response.body);
         if (json['success'] == true) {
@@ -1033,6 +1076,7 @@ class MessageService extends ChangeNotifier {
       return false;
     } catch (e) {
       _error = 'Error fetching group conversation: $e';
+      _logHttp(_error!);
       notifyListeners();
       return false;
     }
@@ -1055,9 +1099,11 @@ class MessageService extends ChangeNotifier {
 
     try {
       final sentAt = timestamp ?? DateTime.now().toIso8601String();
+      final url = '${ApiService.baseUrl}/messages/send';
+      _logHttp('POST $url messageType=$messageType receiver=$receiver');
       final response = await http
           .post(
-            Uri.parse('${ApiService.baseUrl}/messages/send'),
+            Uri.parse(url),
             headers: {
               'Authorization': 'Bearer $accessToken',
               'Content-Type': 'application/json',
@@ -1072,6 +1118,7 @@ class MessageService extends ChangeNotifier {
             }),
           )
           .timeout(ApiService.timeout);
+      _logHttpResponse('POST /messages/send', response);
 
       if (response.statusCode == 201) {
         final json = jsonDecode(response.body);
@@ -1090,10 +1137,12 @@ class MessageService extends ChangeNotifier {
       }
 
       _error = 'Failed to send message';
+      _logHttp(_error!);
       notifyListeners();
       return false;
     } catch (e) {
       _error = 'Error sending message: $e';
+      _logHttp(_error!);
       notifyListeners();
       return false;
     }
@@ -1111,11 +1160,11 @@ class MessageService extends ChangeNotifier {
     }
     try {
       final sentAt = timestamp ?? DateTime.now().toIso8601String();
+      final url = '${ApiService.baseUrl}/messages/groups/$groupId/messages';
+      _logHttp('POST $url groupMessageType=$messageType groupId=$groupId');
       final response = await http
           .post(
-            Uri.parse(
-              '${ApiService.baseUrl}/messages/groups/$groupId/messages',
-            ),
+            Uri.parse(url),
             headers: {
               'Authorization': 'Bearer $accessToken',
               'Content-Type': 'application/json',
@@ -1127,6 +1176,7 @@ class MessageService extends ChangeNotifier {
             }),
           )
           .timeout(ApiService.timeout);
+      _logHttpResponse('POST /messages/groups/$groupId/messages', response);
       if (response.statusCode == 201) {
         final json = jsonDecode(response.body);
         if (json['success'] == true) {
@@ -1141,6 +1191,7 @@ class MessageService extends ChangeNotifier {
       return false;
     } catch (e) {
       _error = 'Error sending group message: $e';
+      _logHttp(_error!);
       notifyListeners();
       return false;
     }
@@ -1159,10 +1210,11 @@ class MessageService extends ChangeNotifier {
 
     try {
       final sentAt = timestamp ?? DateTime.now().toIso8601String();
-      final request = http.MultipartRequest(
-        'POST',
-        Uri.parse('${ApiService.baseUrl}/messages/groups/$groupId/messages'),
+      final url = '${ApiService.baseUrl}/messages/groups/$groupId/messages';
+      _logHttp(
+        'MULTIPART POST $url groupId=$groupId messageType=$messageType file=${media.name}',
       );
+      final request = http.MultipartRequest('POST', Uri.parse(url));
       request.headers['Authorization'] = 'Bearer $accessToken';
       request.fields['message_type'] = messageType;
       request.fields['text'] = text?.trim() ?? '';
@@ -1175,6 +1227,10 @@ class MessageService extends ChangeNotifier {
 
       final streamed = await request.send().timeout(ApiService.timeout);
       final response = await http.Response.fromStream(streamed);
+      _logHttpResponse(
+        'MULTIPART POST /messages/groups/$groupId/messages',
+        response,
+      );
 
       if (response.statusCode == 201) {
         final json = jsonDecode(response.body);
@@ -1189,10 +1245,12 @@ class MessageService extends ChangeNotifier {
       }
 
       _error = 'Failed to send group $messageType';
+      _logHttp(_error!);
       notifyListeners();
       return false;
     } catch (e) {
       _error = 'Error sending group $messageType: $e';
+      _logHttp(_error!);
       notifyListeners();
       return false;
     }
@@ -1291,10 +1349,8 @@ class MessageService extends ChangeNotifier {
       print('👤 Receiver: $receiver');
       print('🌐 URL: ${ApiService.baseUrl}/messages/send');
 
-      final request = http.MultipartRequest(
-        'POST',
-        Uri.parse('${ApiService.baseUrl}/messages/send'),
-      );
+      final url = '${ApiService.baseUrl}/messages/send';
+      final request = http.MultipartRequest('POST', Uri.parse(url));
       request.headers['Authorization'] = 'Bearer $accessToken';
       request.fields['receiver'] = receiver;
       request.fields['message_type'] = messageType;
@@ -1316,6 +1372,7 @@ class MessageService extends ChangeNotifier {
         const Duration(seconds: 120),
       );
       final response = await http.Response.fromStream(streamed);
+      _logHttpResponse('MULTIPART POST /messages/send', response);
 
       print('📥 Response Status: ${response.statusCode}');
       print(
@@ -1395,6 +1452,7 @@ class MessageService extends ChangeNotifier {
       return false;
     } catch (e) {
       _error = 'Error reacting to message: $e';
+      _logHttp(_error!);
       notifyListeners();
       return false;
     }
@@ -1414,6 +1472,7 @@ class MessageService extends ChangeNotifier {
       return false;
     } catch (e) {
       _error = 'Error deleting message: $e';
+      _logHttp(_error!);
       notifyListeners();
       return false;
     }
