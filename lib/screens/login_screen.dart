@@ -49,103 +49,6 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  Future<void> _editBackendUrl(BuildContext context) async {
-    final controller = TextEditingController(text: ApiService.baseUrl);
-    final messenger = ScaffoldMessenger.of(context);
-
-    final result = await showDialog<String>(
-      context: context,
-      builder: (dialogContext) {
-        return AlertDialog(
-          title: const Text('Backend URL'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Current URL: ${ApiService.baseUrl}',
-                style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                  color: MessengerColors.messengerBlue,
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: controller,
-                keyboardType: TextInputType.url,
-                decoration: const InputDecoration(
-                  hintText: 'http://192.168.1.70:7860/api',
-                  helperText: 'Enter your computer\'s IP address',
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(''),
-              child: const Text('Clear'),
-            ),
-            TextButton(
-              onPressed: () async {
-                final candidate = controller.text.trim();
-                final ok = await ApiService.testBaseUrl(candidate);
-                if (!dialogContext.mounted) return;
-                messenger.showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      ok
-                          ? 'Backend reachable at $candidate'
-                          : 'Backend not reachable at $candidate',
-                    ),
-                  ),
-                );
-              },
-              child: const Text('Test'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: () async {
-                final candidate = controller.text.trim();
-                final ok = await ApiService.testBaseUrl(candidate);
-                if (!dialogContext.mounted) return;
-
-                if (!ok) {
-                  messenger.showSnackBar(
-                    const SnackBar(
-                      content: Text(
-                        'Backend URL is not reachable. Check the IP and port.',
-                      ),
-                    ),
-                  );
-                  return;
-                }
-
-                Navigator.of(dialogContext).pop(candidate);
-              },
-              child: const Text('Save'),
-            ),
-          ],
-        );
-      },
-    );
-
-    controller.dispose();
-
-    if (result == null || !mounted) {
-      return;
-    }
-
-    await ApiService.setBaseUrlOverride(result);
-
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Backend URL set to ${ApiService.baseUrl}')),
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -198,14 +101,6 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     SizedBox(height: constraints.maxHeight > 700 ? 48 : 24),
 
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: TextButton.icon(
-                        onPressed: () => _editBackendUrl(context),
-                        icon: const Icon(Icons.settings_outlined, size: 18),
-                        label: const Text('Backend URL'),
-                      ),
-                    ),
 
                     // Username field
                     TextField(

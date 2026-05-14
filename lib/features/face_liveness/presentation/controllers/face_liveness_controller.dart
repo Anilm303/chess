@@ -25,6 +25,9 @@ class FaceLivenessController extends ChangeNotifier {
 
   bool _eyesWereOpen = false;
   bool _finalized = false;
+  bool _stateChanged = false;
+  int _consecutiveFramesWithoutFace = 0;
+  static const int _faceDetectionTimeout = 5;
 
   LivenessStep get step => _step;
   String get hint => _hint;
@@ -44,6 +47,7 @@ class FaceLivenessController extends ChangeNotifier {
   }) async {
     if (_isBusy || _finalized) return;
     _isBusy = true;
+    _stateChanged = false;
 
     try {
       final metrics = await _repository.analyzeImage(
@@ -52,64 +56,78 @@ class FaceLivenessController extends ChangeNotifier {
       );
       if (metrics == null) return;
 
-      _singleFace = metrics.faceCount == 1;
-      _spoofScore = metrics.spoofScore;
-
+      // 🔥 Optimization: Only update if state actually changed
       if (metrics.faceCount == 0) {
-        _step = LivenessStep.alignFace;
-        _hint = 'No face found. Keep face in frame.';
+        _consecutiveFramesWithoutFace++;
+        if (_consecutiveFramesWithoutFace > _faceDetectionTimeout) {
+          _updateState(
+            LivenessStep.alignFace,
+            'No face found. Keep face in frame.',
+          );
+        }
         return;
       }
+      _consecutiveFramesWithoutFace = 0;
 
       if (metrics.faceCount > 1) {
-        _step = LivenessStep.failed;
-        _hint = 'Multiple faces detected. Only one person allowed.';
+        _updateState(
+          LivenessStep.failed,
+          'Multiple faces detected. Only one person allowed.',
+        );
         _finalize();
         return;
       }
 
       if (!metrics.isInsideGuide) {
-        _step = LivenessStep.alignFace;
-        _hint = 'Center your face in the circle';
+        _updateState(LivenessStep.alignFace, 'Center your face in the circle');
         return;
       }
+
+      _singleFace = metrics.faceCount == 1;
+      _spoofScore = metrics.spoofScore;
 
       final avgEyeOpen =
           (metrics.leftEyeOpenProbability + metrics.rightEyeOpenProbability) /
           2;
+
+      // 🔥 Optimization: Batch state updates to reduce notifyListeners() calls
       if (!_blinkDetected) {
-        _step = LivenessStep.blink;
-        _hint = LivenessStep.blink.instruction;
-        if (avgEyeOpen > 0.70) {
+        if (!_eyesWereOpen && avgEyeOpen > 0.70) {
           _eyesWereOpen = true;
+          _stateChanged = true;
         }
         if (_eyesWereOpen && avgEyeOpen < 0.35) {
           _blinkDetected = true;
-          _step = LivenessStep.turnHead;
-          _hint = LivenessStep.turnHead.instruction;
+          _updateState(
+            LivenessStep.turnHead,
+            LivenessStep.turnHead.instruction,
+          );
+          return;
         }
+        _updateState(LivenessStep.blink, LivenessStep.blink.instruction);
         return;
       }
 
       if (!_turnDetected) {
-        _step = LivenessStep.turnHead;
-        _hint = LivenessStep.turnHead.instruction;
         if (metrics.headYaw.abs() > 15) {
           _turnDetected = true;
-          _step = LivenessStep.smile;
-          _hint = LivenessStep.smile.instruction;
+          _updateState(LivenessStep.smile, LivenessStep.smile.instruction);
+          return;
         }
+        _updateState(LivenessStep.turnHead, LivenessStep.turnHead.instruction);
         return;
       }
 
       if (!_smileDetected) {
-        _step = LivenessStep.smile;
-        _hint = LivenessStep.smile.instruction;
         if (metrics.smileProbability > 0.60) {
           _smileDetected = true;
-          _step = LivenessStep.verifying;
-          _hint = LivenessStep.verifying.instruction;
+          _updateState(
+            LivenessStep.verifying,
+            LivenessStep.verifying.instruction,
+          );
+          return;
         }
+        _updateState(LivenessStep.smile, LivenessStep.smile.instruction);
         return;
       }
 
@@ -122,22 +140,30 @@ class FaceLivenessController extends ChangeNotifier {
           singleFace: _singleFace,
         );
 
-        if (_result!.isLive) {
-          _step = LivenessStep.success;
-          _hint = _result!.message;
-        } else {
-          _step = LivenessStep.failed;
-          _hint = _result!.message;
-        }
+        final success = _result!.isLive;
+        _updateState(
+          success ? LivenessStep.success : LivenessStep.failed,
+          _result!.message,
+        );
         _finalize();
       }
     } catch (e) {
-      _step = LivenessStep.failed;
-      _hint = 'Processing error: $e';
+      _updateState(LivenessStep.failed, 'Processing error: $e');
       _finalize();
     } finally {
       _isBusy = false;
-      notifyListeners();
+      if (_stateChanged) {
+        notifyListeners();
+      }
+    }
+  }
+
+  // 🔥 Optimization: Only notify listeners on actual state changes
+  void _updateState(LivenessStep newStep, String newHint) {
+    if (_step != newStep || _hint != newHint) {
+      _step = newStep;
+      _hint = newHint;
+      _stateChanged = true;
     }
   }
 

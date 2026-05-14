@@ -1,11 +1,10 @@
-import 'dart:convert';
-import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_callkit_incoming/entities/entities.dart';
 import 'package:flutter_callkit_incoming/flutter_callkit_incoming.dart';
 import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
 import 'api_service.dart';
+import 'device_bootstrap.dart';
 
 class FCMService {
   static final FCMService _instance = FCMService._internal();
@@ -17,16 +16,12 @@ class FCMService {
 
   Future<void> initialize() async {
     try {
-      await Firebase.initializeApp();
-      
+      await DeviceBootstrap.initializeFirebaseIfAvailable();
+
       final messaging = FirebaseMessaging.instance;
 
       // Request permissions (especially for iOS)
-      await messaging.requestPermission(
-        alert: true,
-        badge: true,
-        sound: true,
-      );
+      await messaging.requestPermission(alert: true, badge: true, sound: true);
 
       // Get the token
       _token = await messaging.getToken();
@@ -35,7 +30,9 @@ class FCMService {
       }
 
       // Handle background messages
-      FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+      FirebaseMessaging.onBackgroundMessage(
+        _firebaseMessagingBackgroundHandler,
+      );
 
       // Handle foreground messages
       FirebaseMessaging.onMessage.listen((RemoteMessage message) {
@@ -60,7 +57,7 @@ class FCMService {
 
   Future<void> updateTokenOnBackend(String accessToken) async {
     if (_token == null) return;
-    
+
     try {
       await ApiService.updateFcmToken(_token!, accessToken);
       if (kDebugMode) {
@@ -82,7 +79,10 @@ class FCMService {
 
   static Future<void> _showIncomingCallUi(Map<String, dynamic> data) async {
     final callId = data['call_id'] ?? const Uuid().v4();
-    final callerName = data['caller_display_name'] ?? data['caller_username'] ?? 'Unknown Caller';
+    final callerName =
+        data['caller_display_name'] ??
+        data['caller_username'] ??
+        'Unknown Caller';
     final isVideo = data['call_type'] == 'video';
 
     final params = CallKitParams(
@@ -136,11 +136,11 @@ class FCMService {
 // Global background handler
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  await Firebase.initializeApp();
+  await DeviceBootstrap.initializeFirebaseIfAvailable();
   if (kDebugMode) {
     print('🌙 Handling background message: ${message.messageId}');
   }
-  
+
   final type = message.data['type'];
   if (type == 'call' || type == 'incoming_call') {
     await FCMService._showIncomingCallUi(message.data);

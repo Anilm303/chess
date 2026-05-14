@@ -12,6 +12,9 @@ class FaceLivenessRepositoryImpl implements FaceLivenessRepository {
   final AntiSpoofEngine _antiSpoofEngine;
 
   Offset? _lastFaceCenter;
+  late Size _cachedPreviewSize;
+  late double _cachedGuideRadius;
+  bool _guideRadiusCached = false;
 
   FaceLivenessRepositoryImpl()
     : _faceDetector = FaceDetector(
@@ -32,6 +35,13 @@ class FaceLivenessRepositoryImpl implements FaceLivenessRepository {
     InputImage image, {
     required Size previewSize,
   }) async {
+    // 🔥 Optimization: Cache guide radius to avoid recalculation every frame
+    if (!_guideRadiusCached || _cachedPreviewSize != previewSize) {
+      _cachedPreviewSize = previewSize;
+      _cachedGuideRadius = previewSize.shortestSide * 0.30;
+      _guideRadiusCached = true;
+    }
+
     final faces = await _faceDetector.processImage(image);
 
     if (faces.isEmpty) {
@@ -51,17 +61,20 @@ class FaceLivenessRepositoryImpl implements FaceLivenessRepository {
     final face = faces.first;
     final rect = face.boundingBox;
     final center = rect.center;
+
+    // 🔥 Optimization: Calculate motion only once
     final motion = _lastFaceCenter == null
         ? 0.0
         : (center - _lastFaceCenter!).distance;
     _lastFaceCenter = center;
 
+    // 🔥 Optimization: Null-coalescing with caching
     final leftEye = face.leftEyeOpenProbability ?? 0.0;
     final rightEye = face.rightEyeOpenProbability ?? 0.0;
     final smile = face.smilingProbability ?? 0.0;
     final yaw = face.headEulerAngleY ?? 0.0;
 
-    final isInsideGuide = _isFaceInsideGuide(rect, previewSize);
+    final isInsideGuide = _isFaceInsideGuide(center, previewSize);
 
     final spoofScore = _antiSpoofEngine.score(
       yaw: yaw,
@@ -82,11 +95,10 @@ class FaceLivenessRepositoryImpl implements FaceLivenessRepository {
     );
   }
 
-  bool _isFaceInsideGuide(Rect face, Size previewSize) {
+  // 🔥 Optimization: Use Offset directly instead of converting Rect
+  bool _isFaceInsideGuide(Offset faceCenter, Size previewSize) {
     final center = Offset(previewSize.width / 2, previewSize.height / 2);
-    final guideRadius = previewSize.shortestSide * 0.30;
-    final faceCenter = face.center;
-    return (faceCenter - center).distance <= guideRadius * 0.65;
+    return (faceCenter - center).distance <= _cachedGuideRadius * 0.65;
   }
 
   @override

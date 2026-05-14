@@ -366,7 +366,7 @@ class MessageService extends ChangeNotifier {
     _socket?.offAny();
     _socket?.disconnect();
     _socket?.dispose();
-    final socketBaseUrl = ApiService.baseUrl.replaceAll('/api', '');
+    final socketBaseUrl = ApiService.socketBaseUrl;
     _logHttp(
       'Connecting socket to $socketBaseUrl (forceReconnect=$forceReconnect)',
     );

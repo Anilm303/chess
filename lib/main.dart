@@ -12,6 +12,10 @@ import 'services/story_service.dart';
 import 'services/notification_service.dart';
 import 'services/theme_service.dart';
 import 'services/fcm_service.dart';
+import 'services/sound_service.dart';
+import 'services/device_bootstrap.dart';
+import 'providers/game_provider.dart';
+import 'screens/ludo_home_screen.dart';
 import 'package:flutter_callkit_incoming/flutter_callkit_incoming.dart';
 import 'package:flutter_callkit_incoming/entities/entities.dart';
 import 'screens/login_screen.dart';
@@ -19,6 +23,7 @@ import 'screens/register_screen.dart';
 import 'screens/call_screen.dart';
 import 'screens/chess_board_screen.dart';
 import 'screens/notifications_screen.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'navigation/app_navigator.dart';
 import 'widgets/incoming_call_toast_host.dart';
 
@@ -26,11 +31,63 @@ const bool _enablePushNotifications = false;
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await ApiService.initialize();
-  if (!kIsWeb && _enablePushNotifications) {
-    await FCMService().initialize();
+  runApp(const BootstrapGate());
+}
+
+class BootstrapGate extends StatefulWidget {
+  const BootstrapGate({super.key});
+
+  @override
+  State<BootstrapGate> createState() => _BootstrapGateState();
+}
+
+class _BootstrapGateState extends State<BootstrapGate> {
+  bool _ready = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _bootstrap();
   }
-  runApp(const ChessApp());
+
+  Future<void> _bootstrap() async {
+    await dotenv.load(fileName: ".env");
+    await DeviceBootstrap.initializeFirebaseIfAvailable();
+    await DeviceBootstrap.requestStartupPermissions();
+    await ApiService.initialize();
+
+    if (!kIsWeb && _enablePushNotifications) {
+      await FCMService().initialize();
+    }
+
+    if (!mounted) return;
+    setState(() {
+      _ready = true;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!_ready) {
+      return MaterialApp(
+        debugShowCheckedModeBanner: false,
+        home: Scaffold(
+          body: Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: const [
+                CircularProgressIndicator(),
+                SizedBox(height: 16),
+                Text('Starting app...'),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    return const ChessApp();
+  }
 }
 
 class ChessApp extends StatelessWidget {
@@ -46,6 +103,8 @@ class ChessApp extends StatelessWidget {
         ChangeNotifierProvider(create: (context) => NoteService()),
         ChangeNotifierProvider(create: (context) => StoryService()),
         ChangeNotifierProvider(create: (context) => ThemeService()),
+        ChangeNotifierProvider(create: (context) => SoundService()),
+        ChangeNotifierProvider(create: (context) => GameProvider()),
         ChangeNotifierProvider(
           create: (context) => NotificationService(
             authService: context.read<AuthService>(),
@@ -78,6 +137,7 @@ class ChessApp extends StatelessWidget {
               '/register': (context) => const RegisterScreen(),
               '/chess': (context) => const ChessBoardScreen(),
               '/notifications': (context) => const NotificationsScreen(),
+              '/ludo': (context) => const LudoHomeScreen(),
             },
           );
         },
@@ -117,6 +177,18 @@ class _CallBootstrapHostState extends State<_CallBootstrapHost> {
   String? _connectedFor;
   String? _lastBaseUrl;
   StreamSubscription? _callKitSubscription;
+  late AuthService _authService;
+  late CallService _callService;
+  bool _providersReady = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_providersReady) return;
+    _authService = context.read<AuthService>();
+    _callService = context.read<CallService>();
+    _providersReady = true;
+  }
 
   @override
   void initState() {
@@ -136,8 +208,8 @@ class _CallBootstrapHostState extends State<_CallBootstrapHost> {
         debugPrint('📱 CallKit Event: ${event.event}');
 
         try {
-          final authService = context.read<AuthService>();
-          final callService = context.read<CallService>();
+          final authService = _authService;
+          final callService = _callService;
 
           if (!authService.isAuthenticated) {
             debugPrint('❌ Not authenticated for call event');

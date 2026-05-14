@@ -9,6 +9,7 @@ import '../services/message_service.dart';
 import '../services/theme_service.dart';
 import 'messaging_screen.dart';
 import '../features/face_liveness/presentation/screens/liveness_permission_screen.dart';
+import 'ludo_home_screen.dart';
 
 class ChessBoardScreen extends StatefulWidget {
   const ChessBoardScreen({super.key});
@@ -125,6 +126,18 @@ class _ChessBoardScreenState extends State<ChessBoardScreen> {
               Navigator.of(context).push(
                 MaterialPageRoute(
                   builder: (_) => const LivenessPermissionScreen(),
+                ),
+              );
+            },
+          ),
+          IconButton(
+            tooltip: 'Play Ludo',
+            icon: const Icon(Icons.sports_esports),
+            color: MessengerColors.messengerBlue,
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const LudoHomeScreen(),
                 ),
               );
             },

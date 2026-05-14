@@ -85,7 +85,7 @@ class CallService extends ChangeNotifier {
       }
     }
 
-    final baseUrl = ApiService.baseUrl.replaceAll('/api', '');
+    final baseUrl = ApiService.socketBaseUrl;
     _log('📡 Connecting to: $baseUrl');
 
     _socket = IO.io(

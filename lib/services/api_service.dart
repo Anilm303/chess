@@ -5,297 +5,87 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/user_model.dart';
 
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+
 class ApiService {
-  static const String _prefsKeyBaseUrlOverride = 'api_base_url_override';
-  static const Set<String> _knownLegacyBadBaseUrls = {
-    'http://192.168.1.3:7860/api',
-  };
-
-  // Override this when building for a physical device, for example:
-  // flutter run --dart-define=API_BASE_URL=http://192.168.1.100:5000/api
-  static const String _configuredBaseUrl = String.fromEnvironment(
-    'API_BASE_URL',
-    defaultValue: '',
-  );
-
-  static String? _runtimeBaseUrlOverride;
-  static String? _cachedSuccessfulBaseUrl;
-
-  // Default to local backend for development
-  // For Real Device on WiFi: set this to the backend host IP.
-  // For Android Emulator: 10.0.2.2:7860 (fallback)
-  static const String _defaultPhysicalDeviceBaseUrl =
-      'http://192.168.1.20:7860/api'; // Real device on local WiFi
-
-  static String _webDefaultBaseUrl() {
-    final host = Uri.base.host.trim();
-    if (host.isNotEmpty && host != 'localhost' && host != '127.0.0.1') {
-      return 'http://$host:7860/api';
-    }
-    return 'http://localhost:7860/api';
-  }
-
-  static Future<void> initialize() async {
-    final prefs = await SharedPreferences.getInstance();
-    final stored = _normalizeBaseUrl(
-      prefs.getString(_prefsKeyBaseUrlOverride) ?? '',
-    );
-
-    if (_knownLegacyBadBaseUrls.contains(stored)) {
-      if (kDebugMode) {
-        print('🧹 Clearing legacy bad base URL override: $stored');
-      }
-      _runtimeBaseUrlOverride = null;
-      await prefs.remove(_prefsKeyBaseUrlOverride);
-      _logConfigSnapshot(reason: 'legacy_override_cleared');
-      return;
-    }
-
-    if (stored.isEmpty) {
-      _runtimeBaseUrlOverride = null;
-      _logConfigSnapshot(reason: 'no_stored_override');
-      return;
-    }
-
-    try {
-      final response = await http
-          .get(Uri.parse('$stored/auth/health'))
-          .timeout(const Duration(seconds: 2));
-      if (response.statusCode == 200) {
-        _runtimeBaseUrlOverride = stored;
-        _logConfigSnapshot(reason: 'stored_override_ok');
-        return;
-      }
-    } catch (_) {
-      // Ignore and fall back to detected/default candidates below.
-    }
-
-    _runtimeBaseUrlOverride = null;
-    await prefs.remove(_prefsKeyBaseUrlOverride);
-    _logConfigSnapshot(reason: 'stored_override_removed');
-  }
-
-  static Future<void> setBaseUrlOverride(String? url) async {
-    final normalized = _normalizeBaseUrl(url ?? '');
-    _runtimeBaseUrlOverride = normalized.isEmpty ? null : normalized;
-
-    final prefs = await SharedPreferences.getInstance();
-    if (_runtimeBaseUrlOverride == null) {
-      await prefs.remove(_prefsKeyBaseUrlOverride);
-    } else {
-      await prefs.setString(_prefsKeyBaseUrlOverride, _runtimeBaseUrlOverride!);
-    }
-  }
-
+  /// Base URL for the API, fetched from the .env file.
   static String get baseUrl {
-    if (_cachedSuccessfulBaseUrl != null) {
-      return _cachedSuccessfulBaseUrl!;
+    final url = dotenv.env['API_BASE_URL'] ?? '';
+    if (url.isEmpty) {
+      if (kDebugMode) {
+        print('⚠️ API_BASE_URL is not set in .env! Falling back to localhost.');
+      }
+      return 'http://127.0.0.1:8000/api';
     }
-
-    if (_runtimeBaseUrlOverride != null) {
-      return _runtimeBaseUrlOverride!;
-    }
-
-    final configured = _normalizeBaseUrl(_configuredBaseUrl);
-    if (configured.isNotEmpty) {
-      return configured;
-    }
-
-    if (kIsWeb) {
-      // Prefer a configured or saved backend, otherwise fall back to the deployed API.
-      return _webDefaultBaseUrl();
-    }
-
-    switch (defaultTargetPlatform) {
-      case TargetPlatform.android:
-        return _defaultPhysicalDeviceBaseUrl;
-      default:
-        return _defaultPhysicalDeviceBaseUrl;
-    }
+    return _normalizeBaseUrl(url);
   }
+
+  /// Base URL for Socket.IO (strips the /api suffix).
+  static String get socketBaseUrl => _stripApiSuffix(baseUrl);
 
   static const Duration timeout = Duration(seconds: 10);
 
   static String _normalizeBaseUrl(String url) {
     final trimmed = url.trim();
-    if (trimmed.isEmpty) {
-      return '';
-    }
-
+    if (trimmed.isEmpty) return '';
     return trimmed.endsWith('/')
         ? trimmed.substring(0, trimmed.length - 1)
         : trimmed;
   }
 
-  // Candidate base URLs we try in order. This helps physical devices and
-  // emulator setups work without manually editing the code every time.
-  static List<String> _candidateBaseUrls() {
-    final candidates = <String>[
-      ...(_runtimeBaseUrlOverride == null
-          ? const <String>[]
-          : <String>[_runtimeBaseUrlOverride!]),
-      _configuredBaseUrl,
-      if (kIsWeb) ...[
-        _webDefaultBaseUrl(),
-        'http://localhost:7860/api',
-        'http://127.0.0.1:7860/api',
-      ] else ...[
-        // Try WiFi IP first (for real devices)
-        _defaultPhysicalDeviceBaseUrl,
-        // Then try emulator IP (for Android emulator)
-        'http://10.0.2.2:7860/api',
-        'http://127.0.0.1:7860/api',
-      ],
-    ];
-
-    final normalized = <String>[];
-    for (final candidate in candidates) {
-      final value = _normalizeBaseUrl(candidate);
-      if (value.isNotEmpty && !normalized.contains(value)) {
-        normalized.add(value);
-      }
+  static String _stripApiSuffix(String url) {
+    final normalized = _normalizeBaseUrl(url);
+    if (normalized.endsWith('/api')) {
+      return normalized.substring(0, normalized.length - 4);
     }
-    _cachedSuccessfulBaseUrl = null;
     return normalized;
   }
 
-  static void _logConfigSnapshot({required String reason}) {
-    if (!kDebugMode) return;
-    final configured = _normalizeBaseUrl(_configuredBaseUrl);
-    final candidates = _candidateBaseUrls();
-    print('🌐 ApiService config snapshot [$reason]');
-    print('   runtimeOverride=$_runtimeBaseUrlOverride');
-    print(
-      '   configuredBaseUrl=${configured.isEmpty ? '(empty)' : configured}',
-    );
-    print('   selectedBaseUrl=$baseUrl');
-    print('   candidates=${candidates.join(', ')}');
-  }
-
-  static String _candidateUrlsMessage() {
-    final urls = _candidateBaseUrls();
-    if (urls.isEmpty) {
-      return '- none';
+  static Future<void> initialize() async {
+    // No longer needs complex probing. Initialized via dotenv in main.dart.
+    if (kDebugMode) {
+      print('🌐 ApiService initialized with baseUrl: $baseUrl');
     }
-
-    return urls.map((url) => '- $url').join('\n');
   }
 
-  static String _networkErrorMessage(String action, Object error) {
-    final details = error is TimeoutException
-        ? 'Request timed out'
-        : error is http.ClientException
-        ? error.message
-        : error.toString();
-
-    return '❌ $action Network Error: $details\n'
-        'URL: $baseUrl\n'
-        'Tried:\n${_candidateUrlsMessage()}\n'
-        'Make sure:\n'
-        '1. Backend is running and reachable from the phone\n'
-        '2. The Android device is on the same WiFi as the backend\n'
-        '3. API_BASE_URL points to the correct machine IP or use the in-app backend URL setting\n'
-        '4. If the phone is USB-connected, run: adb reverse tcp:7860 tcp:7860 and use http://127.0.0.1:7860/api';
-  }
-
-  static Future<http.Response> _tryPost(
+  static Future<http.Response> _post(
     String path,
     Map<String, String> headers,
     Object? body,
   ) async {
-    List<String> triedUrls = [];
-    Exception? lastError;
-
-    final candidates = _candidateBaseUrls();
-    for (final base in candidates) {
-      final url = '$base$path';
-      triedUrls.add(url);
-      if (kDebugMode) print('Trying POST $url');
-      try {
-        final response = await http
-            .post(Uri.parse(url), headers: headers, body: jsonEncode(body))
-            .timeout(timeout);
-
-        // If we got here, it's a success or a server error (which is still a response)
-        if (kDebugMode) {
-          print('✅ POST $url succeeded with status ${response.statusCode}');
-        }
-        _cachedSuccessfulBaseUrl = base;
-        return response;
-      } on TimeoutException catch (e) {
-        lastError = e;
-        if (kDebugMode) {
-          print('⏳ POST $url timed out after ${timeout.inSeconds}s');
-        }
-      } catch (e) {
-        lastError = e as Exception? ?? Exception('$e');
-        if (kDebugMode) print('❌ POST $url failed: $e');
-      }
+    final url = '$baseUrl$path';
+    try {
+      if (kDebugMode) print('📤 POST $url');
+      return await http
+          .post(Uri.parse(url), headers: headers, body: jsonEncode(body))
+          .timeout(timeout);
+    } catch (e) {
+      if (kDebugMode) print('❌ POST $url failed: $e');
+      rethrow;
     }
-
-    if (kDebugMode) {
-      print(
-        '🚫 All POST attempts failed for $path. Tried:\n${triedUrls.join('\n')}',
-      );
-    }
-    throw lastError ??
-        Exception(
-          'POST failed for $path after trying ${candidates.length} URLs',
-        );
   }
 
-  static Future<http.Response> _tryGet(
+  static Future<http.Response> _get(
     String path,
     Map<String, String> headers,
   ) async {
-    List<String> triedUrls = [];
-    Exception? lastError;
-
-    final candidates = _candidateBaseUrls();
-    for (final base in candidates) {
-      final url = '$base$path';
-      triedUrls.add(url);
-      if (kDebugMode) print('Trying GET $url');
-      try {
-        final response = await http
-            .get(Uri.parse(url), headers: headers)
-            .timeout(timeout);
-
-        if (kDebugMode) {
-          print('✅ GET $url succeeded with status ${response.statusCode}');
-        }
-        _cachedSuccessfulBaseUrl = base;
-        return response;
-      } on TimeoutException catch (e) {
-        lastError = e;
-        if (kDebugMode) {
-          print('⏳ GET $url timed out after ${timeout.inSeconds}s');
-        }
-      } catch (e) {
-        lastError = e as Exception? ?? Exception('$e');
-        if (kDebugMode) print('❌ GET $url failed: $e');
-      }
+    final url = '$baseUrl$path';
+    try {
+      if (kDebugMode) print('📥 GET $url');
+      return await http.get(Uri.parse(url), headers: headers).timeout(timeout);
+    } catch (e) {
+      if (kDebugMode) print('❌ GET $url failed: $e');
+      rethrow;
     }
-
-    if (kDebugMode) {
-      print(
-        '🚫 All GET attempts failed for $path. Tried:\n${triedUrls.join('\n')}',
-      );
-    }
-    throw lastError ??
-        Exception(
-          'GET failed for $path after trying ${candidates.length} URLs',
-        );
   }
 
-  static Future<bool> testBaseUrl(String baseUrl) async {
-    final normalized = _normalizeBaseUrl(baseUrl);
-    if (normalized.isEmpty) return false;
-
+  // Legacy helper for manual testing if needed
+  static Future<bool> testBaseUrl(String url) async {
+    final normalized = _normalizeBaseUrl(url);
     try {
       final response = await http
-          .get(Uri.parse('$normalized/auth/health'))
-          .timeout(const Duration(seconds: 5));
+          .get(Uri.parse('$normalized/ping'))
+          .timeout(const Duration(seconds: 2));
       return response.statusCode == 200;
     } catch (_) {
       return false;
@@ -319,7 +109,7 @@ class ApiService {
       };
       if (kDebugMode) print('📤 Body: $body');
 
-      final response = await _tryPost('/auth/register', {
+      final response = await _post('/auth/register', {
         'Content-Type': 'application/json',
       }, body);
 
@@ -338,11 +128,11 @@ class ApiService {
         );
       }
     } on TimeoutException catch (e) {
-      final msg = _networkErrorMessage('Register', e);
+      final msg = 'Connection timed out. Please check your internet and BASE_URL in .env';
       if (kDebugMode) print(msg);
       return AuthResponse(success: false, message: msg);
     } on http.ClientException catch (e) {
-      final msg = _networkErrorMessage('Register', e);
+      final msg = 'Network error: ${e.message}. Ensure your backend is running at $baseUrl';
       if (kDebugMode) print(msg);
       return AuthResponse(success: false, message: msg);
     } catch (e) {
@@ -359,7 +149,7 @@ class ApiService {
       final body = {'username': username, 'password': password};
       if (kDebugMode) print('📤 Body: $body');
 
-      final response = await _tryPost('/auth/login', {
+      final response = await _post('/auth/login', {
         'Content-Type': 'application/json',
       }, body);
 
@@ -378,11 +168,11 @@ class ApiService {
         );
       }
     } on TimeoutException catch (e) {
-      final msg = _networkErrorMessage('Login', e);
+      final msg = 'Login timed out. Check server status at $baseUrl';
       if (kDebugMode) print(msg);
       return AuthResponse(success: false, message: msg);
     } on http.ClientException catch (e) {
-      final msg = _networkErrorMessage('Login', e);
+      final msg = 'Network error during login: ${e.message}';
       if (kDebugMode) print(msg);
       return AuthResponse(success: false, message: msg);
     } catch (e) {
@@ -394,7 +184,7 @@ class ApiService {
   static Future<AuthResponse> validateToken(String token) async {
     try {
       if (kDebugMode) print('📡 Validate Token (trying candidates)');
-      final response = await _tryGet('/auth/validate-token', {
+      final response = await _get('/auth/validate-token', {
         'Authorization': 'Bearer $token',
       });
 
@@ -418,7 +208,7 @@ class ApiService {
   static Future<void> logout(String token) async {
     if (kDebugMode) print('📡 Logout Request (trying candidates)');
     try {
-      final response = await _tryPost('/auth/logout', {
+      final response = await _post('/auth/logout', {
         'Authorization': 'Bearer $token',
         'Content-Type': 'application/json',
       }, null);
@@ -443,7 +233,7 @@ class ApiService {
     String accessToken,
   ) async {
     try {
-      await _tryPost(
+      await _post(
         '/auth/update-fcm-token',
         {
           'Authorization': 'Bearer $accessToken',
