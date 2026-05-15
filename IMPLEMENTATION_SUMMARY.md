@@ -209,6 +209,7 @@ Same flow but with:
 | `lib/screens/call_screen.dart` | Complete Rewrite | ✅ Done |
 | `lib/screens/incoming_call_screen.dart` | Complete Rewrite | ✅ Done |
 | `lib/main.dart` | Updated CallKit | ✅ Done |
+| `lib/main.dart` | Updated CallKit/Firebase | ✅ Done |
 | `lib/services/api_service.dart` | Already has 192.168.1.12 | ✅ OK |
 
 ### Backup Files (Old Versions):

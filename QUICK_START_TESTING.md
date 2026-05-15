@@ -301,7 +301,7 @@ adb shell ping 192.168.1.12
 
 ---
 
-**Ready? Let's test! 🚀**
+## Ready? Let's test! 🚀
 
 Run backend, emulator, and follow the test scenarios above.
 Check logs with: `adb logcat | findstr "CallService"`

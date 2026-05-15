@@ -23,7 +23,6 @@ import 'screens/register_screen.dart';
 import 'screens/call_screen.dart';
 import 'screens/chess_board_screen.dart';
 import 'screens/notifications_screen.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'navigation/app_navigator.dart';
 import 'widgets/incoming_call_toast_host.dart';
 
@@ -51,10 +50,9 @@ class _BootstrapGateState extends State<BootstrapGate> {
   }
 
   Future<void> _bootstrap() async {
-    await dotenv.load(fileName: ".env");
+    await ApiService.initialize();
     await DeviceBootstrap.initializeFirebaseIfAvailable();
     await DeviceBootstrap.requestStartupPermissions();
-    await ApiService.initialize();
 
     if (!kIsWeb && _enablePushNotifications) {
       await FCMService().initialize();

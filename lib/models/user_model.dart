@@ -23,7 +23,8 @@ class User {
     );
   }
 
-  String get firstLetter => firstName.isNotEmpty ? firstName[0].toUpperCase() : 'U';
+  String get firstLetter =>
+      firstName.isNotEmpty ? firstName[0].toUpperCase() : 'U';
   String get fullName => '$firstName $lastName';
 }
 
@@ -31,12 +32,14 @@ class AuthResponse {
   final bool success;
   final String message;
   final String? accessToken;
+  final String? refreshToken;
   final User? user;
 
   AuthResponse({
     required this.success,
     required this.message,
     this.accessToken,
+    this.refreshToken,
     this.user,
   });
 
@@ -45,6 +48,7 @@ class AuthResponse {
       success: json['success'] ?? false,
       message: json['message'] ?? '',
       accessToken: json['access_token'],
+      refreshToken: json['refresh_token'],
       user: json['user'] != null ? User.fromJson(json['user']) : null,
     );
   }

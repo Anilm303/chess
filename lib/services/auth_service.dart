@@ -1,17 +1,20 @@
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../config/backend_config.dart';
 import '../models/user_model.dart';
 import 'api_service.dart';
 
 class AuthService extends ChangeNotifier {
   User? _currentUser;
   String? _accessToken;
+  String? _refreshToken;
   bool _isLoading = false;
   String? _error;
 
   // Getters
   User? get currentUser => _currentUser;
   String? get accessToken => _accessToken;
+  String? get refreshToken => _refreshToken;
   bool get isLoading => _isLoading;
   String? get error => _error;
   bool get isAuthenticated => _accessToken != null && _currentUser != null;
@@ -28,8 +31,14 @@ class AuthService extends ChangeNotifier {
   // Load token from secure storage
   Future<void> _loadStoredToken() async {
     try {
+      if (BackendConfig.needsUserConfiguredBaseUrl) {
+        notifyListeners();
+        return;
+      }
+
       final prefs = await SharedPreferences.getInstance();
       _accessToken = prefs.getString('access_token');
+      _refreshToken = prefs.getString('refresh_token');
 
       if (_accessToken != null) {
         try {
@@ -38,14 +47,16 @@ class AuthService extends ChangeNotifier {
           if (response.success && response.user != null) {
             _currentUser = response.user;
           } else {
-            // Token is invalid, clear it
-            await _clearToken();
+            // Try refresh token before clearing the session.
+            final refreshed = await _refreshIfPossible();
+            if (!refreshed) {
+              await _clearToken();
+            }
           }
         } catch (e) {
-          // Backend not available, but token exists - keep it
-          // Will validate when user tries to make a request
           if (kDebugMode)
             print('Backend unavailable during token validation: $e');
+          await _refreshIfPossible();
         }
       }
       notifyListeners();
@@ -59,11 +70,13 @@ class AuthService extends ChangeNotifier {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove('access_token');
+      await prefs.remove('refresh_token');
     } catch (e) {
       if (kDebugMode) print('Error clearing token: $e');
     }
     _currentUser = null;
     _accessToken = null;
+    _refreshToken = null;
     _error = null;
   }
 
@@ -75,6 +88,41 @@ class AuthService extends ChangeNotifier {
     } catch (e) {
       if (kDebugMode) print('Error saving token: $e');
     }
+  }
+
+  Future<void> _saveRefreshToken(String token) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('refresh_token', token);
+    } catch (e) {
+      if (kDebugMode) print('Error saving refresh token: $e');
+    }
+  }
+
+  Future<bool> _refreshIfPossible() async {
+    if (_refreshToken == null || _refreshToken!.isEmpty) {
+      return false;
+    }
+
+    try {
+      final response = await ApiService.refreshAccessToken(_refreshToken!);
+      if (response.success && response.accessToken != null) {
+        _accessToken = response.accessToken;
+        if (response.user != null) {
+          _currentUser = response.user;
+        }
+        await _saveToken(_accessToken!);
+        if (response.refreshToken != null) {
+          _refreshToken = response.refreshToken;
+          await _saveRefreshToken(_refreshToken!);
+        }
+        return true;
+      }
+    } catch (e) {
+      if (kDebugMode) print('Refresh failed: $e');
+    }
+
+    return false;
   }
 
   // Register new user
@@ -102,8 +150,12 @@ class AuthService extends ChangeNotifier {
           response.accessToken != null &&
           response.user != null) {
         _accessToken = response.accessToken;
+        _refreshToken = response.refreshToken;
         _currentUser = response.user;
         await _saveToken(_accessToken!);
+        if (_refreshToken != null) {
+          await _saveRefreshToken(_refreshToken!);
+        }
         _isLoading = false;
         notifyListeners();
         return true;
@@ -140,8 +192,12 @@ class AuthService extends ChangeNotifier {
           response.accessToken != null &&
           response.user != null) {
         _accessToken = response.accessToken;
+        _refreshToken = response.refreshToken;
         _currentUser = response.user;
         await _saveToken(_accessToken!);
+        if (_refreshToken != null) {
+          await _saveRefreshToken(_refreshToken!);
+        }
         _isLoading = false;
         notifyListeners();
         return true;
@@ -165,7 +221,7 @@ class AuthService extends ChangeNotifier {
       // Call backend logout endpoint if token exists
       if (_accessToken != null) {
         try {
-          await ApiService.logout(_accessToken!);
+          await ApiService.logout(_accessToken!, refreshToken: _refreshToken);
         } catch (e) {
           if (kDebugMode) print('Error calling logout endpoint: $e');
           // Continue even if logout endpoint fails
@@ -174,12 +230,14 @@ class AuthService extends ChangeNotifier {
 
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove('access_token');
+      await prefs.remove('refresh_token');
     } catch (e) {
       if (kDebugMode) print('Error clearing token: $e');
     }
 
     _currentUser = null;
     _accessToken = null;
+    _refreshToken = null;
     _error = null;
     notifyListeners();
   }

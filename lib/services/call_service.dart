@@ -903,8 +903,11 @@ class CallService extends ChangeNotifier {
     _remoteRenderers.clear();
 
     // Stop media stream
-    if (_localStream != null) {
-      for (final track in _localStream!.getTracks()) {
+    final streamToDispose = _localStream;
+    _localStream = null;
+
+    if (streamToDispose != null) {
+      for (final track in streamToDispose.getTracks()) {
         try {
           await track.stop();
         } catch (e) {
@@ -912,11 +915,10 @@ class CallService extends ChangeNotifier {
         }
       }
       try {
-        await _localStream!.dispose();
+        await streamToDispose.dispose();
       } catch (e) {
         _log('⚠️ Error disposing stream: $e');
       }
-      _localStream = null;
     }
 
     _participants.clear();

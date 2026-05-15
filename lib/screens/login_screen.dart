@@ -49,6 +49,11 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  Future<void> _maybePromptForBackendUrl() async {
+    // Previously the app prompted for a backend URL on physical devices.
+    // We intentionally removed that behavior to restore a simple
+    // local-development flow. No-op kept for compatibility.
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -100,7 +105,6 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     ),
                     SizedBox(height: constraints.maxHeight > 700 ? 48 : 24),
-
 
                     // Username field
                     TextField(
