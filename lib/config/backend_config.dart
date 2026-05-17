@@ -14,6 +14,10 @@ import 'backend_platform_stub.dart'
 ///   LAN. Change this if your PC gets a different IP, or override with
 ///   `--dart-define=API_BASE_URL=...`.
 class BackendConfig {
+  static const String _productionApiBase =
+      'https://anil1515-chess-backend.hf.space/api';
+  static const String _productionSocketBase =
+      'https://anil1515-chess-backend.hf.space';
   static const String _lanApiBase = 'http://192.168.1.19:7860/api';
 
   static const String _apiDefine = String.fromEnvironment(
@@ -29,6 +33,10 @@ class BackendConfig {
   static String get apiBaseUrl {
     final explicit = _normalize(_apiDefine);
     if (explicit.isNotEmpty) return explicit;
+
+    if (kReleaseMode) {
+      return _productionApiBase;
+    }
 
     switch (detectBackendDeviceType()) {
       case BackendDeviceType.web:
@@ -50,6 +58,10 @@ class BackendConfig {
   static String get socketBaseUrl {
     final explicit = _normalize(_socketDefine);
     if (explicit.isNotEmpty) return explicit;
+
+    if (kReleaseMode) {
+      return _productionSocketBase;
+    }
 
     final apiUrl = apiBaseUrl;
     if (apiUrl.endsWith('/api')) {

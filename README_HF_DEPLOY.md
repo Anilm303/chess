@@ -26,6 +26,19 @@ flutter build web --release --dart-define=API_BASE_URL=https://Anil1515-chess-ba
 
 5. After pushing, open the Space page and check `Logs` → `Build` and `Container` for build/run output. If the App tab is blank, open the browser DevTools console to see runtime errors.
 
-If you prefer manual steps or upload via the HF web UI, follow the guide in the main conversation or copy the `web/` folder contents and upload them via Files → Upload.
+If you prefer manual steps or upload via the HF web UI, create a Static Space and upload the *contents* of `build/web` (not the parent folder) to the Space root:
+
+- `index.html`
+- `main.dart.js`
+- `flutter_bootstrap.js`
+- `flutter.js`
+- `flutter_service_worker.js`
+- `assets/`
+- `canvaskit/`
+- `icons/`
+- `manifest.json`
+- `version.json`
+
+Make sure `API_BASE_URL` and `SOCKET_BASE_URL` were set correctly at build time, then use Files → Upload or git push.
 
 If you need help reading the logs or debugging errors, paste the first 30 lines from Build/Container logs and any App Console output into the chat.
