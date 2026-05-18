@@ -7,6 +7,7 @@ import 'services/auth_service.dart';
 import 'services/api_service.dart';
 import 'services/call_service.dart';
 import 'services/message_service.dart';
+import 'services/friend_service.dart';
 import 'services/note_service.dart';
 import 'services/story_service.dart';
 import 'services/notification_service.dart';
@@ -97,7 +98,11 @@ class ChessApp extends StatelessWidget {
       providers: [
         ChangeNotifierProvider(create: (context) => AuthService()),
         ChangeNotifierProvider(create: (context) => CallService()),
-        ChangeNotifierProvider(create: (context) => MessageService()),
+        ChangeNotifierProvider(create: (context) => FriendService()),
+        ChangeNotifierProvider(
+          create: (context) =>
+              MessageService(friendService: context.read<FriendService>()),
+        ),
         ChangeNotifierProvider(create: (context) => NoteService()),
         ChangeNotifierProvider(create: (context) => StoryService()),
         ChangeNotifierProvider(create: (context) => ThemeService()),

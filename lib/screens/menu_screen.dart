@@ -7,6 +7,7 @@ import '../widgets/notification_panel.dart';
 import 'add_story_screen.dart';
 import 'profile_screen.dart';
 import 'settings_screen.dart';
+import 'friends_screen.dart';
 
 class MenuScreen extends StatelessWidget {
   const MenuScreen({super.key});
@@ -102,11 +103,9 @@ class MenuScreen extends StatelessWidget {
               _MenuTile(
                 icon: Icons.person_add_alt_1,
                 title: 'Friends',
-                onTap: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Friends screen coming soon')),
-                  );
-                },
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const FriendsScreen()),
+                ),
               ),
               const _ThinDivider(),
               _MenuTile(

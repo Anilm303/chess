@@ -19,6 +19,14 @@ class LudoSocketService {
   Function(dynamic)? onGameEnded;
   Function(dynamic)? onActionRejected;
   Function(dynamic)? onError;
+  // Undo/dispute callbacks
+  Function(dynamic)? onUndoRequested;
+  Function(dynamic)? onUndoVoteRecorded;
+  Function(dynamic)? onUndoAccepted;
+  Function(dynamic)? onUndoRejected;
+  // Matchmaking callbacks
+  Function(dynamic)? onMatchFound;
+  Function(dynamic)? onMatchFailed;
 
   // Legacy event names (kept for compatibility)
   Function(dynamic)? onDiceRolled;
@@ -84,6 +92,31 @@ class LudoSocketService {
         onGameEnded?.call(data);
       });
 
+      // Undo/dispute events
+      socket.on('undo_requested', (data) {
+        onUndoRequested?.call(data);
+      });
+
+      socket.on('undo_vote_recorded', (data) {
+        onUndoVoteRecorded?.call(data);
+      });
+
+      socket.on('undo_accepted', (data) {
+        onUndoAccepted?.call(data);
+      });
+
+      socket.on('undo_rejected', (data) {
+        onUndoRejected?.call(data);
+      });
+
+      socket.on('match_found', (data) {
+        onMatchFound?.call(data);
+      });
+
+      socket.on('match_failed', (data) {
+        onMatchFailed?.call(data);
+      });
+
       socket.on('ludo_action_rejected', (data) {
         onActionRejected?.call(data);
       });
@@ -126,7 +159,7 @@ class LudoSocketService {
   }
 
   /// Send dice roll
-  void sendDiceRoll(String roomId, int playerId, int diceValue) {
+  void sendDiceRoll(String roomId, dynamic playerId, int diceValue) {
     socket.emit('ludo_dice_roll', {
       'roomId': roomId,
       'playerId': playerId,
@@ -137,7 +170,7 @@ class LudoSocketService {
   /// Send token move
   void sendTokenMove(
     String roomId,
-    int playerId,
+    dynamic playerId,
     int tokenId,
     int fromPos,
     int toPos,
@@ -168,7 +201,7 @@ class LudoSocketService {
   /// Send token move request (let server validate)
   void sendTokenMoveRequest(
     String roomId,
-    int playerId,
+    dynamic playerId,
     int tokenId,
     int fromPos,
     int toPos,
@@ -190,8 +223,31 @@ class LudoSocketService {
     });
   }
 
+  /// Request undo of last move
+  void requestUndo(String roomId, String playerId) {
+    socket.emit('request_undo', {'roomId': roomId, 'playerId': playerId});
+  }
+
+  /// Quick match request
+  void quickMatch(String playerId, String playerName, {int maxPlayers = 4}) {
+    socket.emit('quick_match', {
+      'playerId': playerId,
+      'playerName': playerName,
+      'maxPlayers': maxPlayers,
+    });
+  }
+
+  /// Vote on pending undo (accept = true/false)
+  void voteUndo(String roomId, String playerId, bool accept) {
+    socket.emit('vote_undo', {
+      'roomId': roomId,
+      'playerId': playerId,
+      'accept': accept,
+    });
+  }
+
   /// Send turn change notification
-  void sendTurnChange(String roomId, int currentPlayerId) {
+  void sendTurnChange(String roomId, dynamic currentPlayerId) {
     socket.emit('ludo_turn_change', {
       'roomId': roomId,
       'currentPlayerId': currentPlayerId,

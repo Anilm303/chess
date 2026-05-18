@@ -9,6 +9,15 @@ class GameProvider extends ChangeNotifier {
   GameController? _gameController;
   AIPlayer? _aiPlayer;
   LudoSocketService? _socketService;
+  dynamic matchedRoom;
+  String? _currentUserId;
+  String? _currentUsername;
+  bool isSearchingMatch = false;
+
+  /// Pending undo request payload from server (if any)
+  dynamic pendingUndoRequest;
+  Map<String, dynamic>? lastMoveEvent;
+  bool awaitingServer = false;
 
   GameState? get gameState => _gameController?.gameState;
   bool get isGamePlaying => gameState?.isPlaying ?? false;
@@ -18,6 +27,7 @@ class GameProvider extends ChangeNotifier {
   int get diceValue => gameState?.diceValue ?? 0;
   bool get diceRolled => gameState?.diceRolled ?? false;
   bool get canMove => gameState?.canMove ?? false;
+  DateTime? _lastRollRequestAt;
 
   /// Initialize offline game
   void initializeOfflineGame({
@@ -65,6 +75,18 @@ class GameProvider extends ChangeNotifier {
     _socketService!.onTokenMoveReceived = _handleRemoteTokenMove;
     _socketService!.onTurnChanged = _handleRemoteTurnChange;
     _socketService!.onStateSync = _handleRemoteStateSync;
+    // Undo/dispute callbacks
+    _socketService!.onUndoRequested = _handleUndoRequested;
+    _socketService!.onUndoVoteRecorded = _handleUndoVoteRecorded;
+    _socketService!.onUndoAccepted = _handleUndoAccepted;
+    _socketService!.onUndoRejected = _handleUndoRejected;
+    // Matchmaking
+    _socketService!.onMatchFound = _handleMatchFound;
+    _socketService!.onMatchFailed = (data) {
+      // stop searching and notify UI
+      isSearchingMatch = false;
+      notifyListeners();
+    };
 
     notifyListeners();
   }
@@ -77,7 +99,52 @@ class GameProvider extends ChangeNotifier {
 
   /// Roll dice
   int rollDice() {
+    // If connected, ask server to roll (authoritative)
+    if (_socketService != null &&
+        _socketService!.isConnectedToServer() &&
+        gameState != null) {
+      // basic client-side rate limit to avoid accidental spam
+      final now = DateTime.now();
+      if (_lastRollRequestAt != null &&
+          now.difference(_lastRollRequestAt!).inMilliseconds < 700) {
+        // ignore rapid repeat
+        return 0;
+      }
+      _lastRollRequestAt = now;
+      awaitingServer = true;
+      try {
+        final dynamic playerId = _currentUserId ?? gameState!.currentPlayer.id;
+        // prefer matchedRoom id when available
+        String? roomId;
+        if (matchedRoom != null)
+          roomId = matchedRoom['roomId'] ?? matchedRoom['room']?['roomId'];
+        roomId ??= gameState!.id;
+        if (roomId != null) {
+          _socketService!.sendDiceRollRequest(roomId, playerId);
+        }
+      } catch (e) {
+        // ignore
+      }
+      notifyListeners();
+      return 0;
+    }
+
     final diceValue = _gameController?.rollDice() ?? 0;
+
+    if (_socketService == null &&
+        _gameController != null &&
+        gameState != null &&
+        diceValue > 0) {
+      final movableTokens = LudoGameLogic.getMovableTokens(
+        gameState!.currentPlayer,
+        diceValue,
+      );
+
+      if (movableTokens.isEmpty && diceValue != 6) {
+        _gameController!.endTurn();
+      }
+    }
+
     notifyListeners();
     return diceValue;
   }
@@ -86,15 +153,48 @@ class GameProvider extends ChangeNotifier {
   bool moveToken(Token token) {
     if (_gameController == null) return false;
 
+    // If connected to server, send authoritative move request instead of applying locally
+    if (_socketService != null &&
+        _socketService!.isConnectedToServer() &&
+        gameState != null) {
+      final int fromPos = token.position;
+      final int dice = gameState!.diceValue;
+      final int toPos = LudoGameLogic.calculateNewPosition(
+        token,
+        dice,
+        token.playerColor,
+      );
+
+      // prevent local double-moves until server responds
+      gameState!.canMove = false;
+      awaitingServer = true;
+      notifyListeners();
+
+      final dynamic playerId = _currentUserId ?? gameState!.currentPlayer.id;
+      try {
+        _socketService!.sendTokenMoveRequest(
+          gameState!.id,
+          playerId,
+          token.id,
+          fromPos,
+          toPos,
+          dice,
+          toPos >= BoardConfig.boardSize,
+          token.isInHome,
+          LudoGameLogic.isSafePosition(toPos, token.playerColor),
+        );
+      } catch (e) {
+        // ignore emit errors
+      }
+
+      return true;
+    }
+
+    // Offline/local mode: apply move locally
     final result = _gameController!.moveToken(
       token,
       _gameController!.gameState.diceValue,
     );
-
-    if (result && _socketService != null) {
-      // Send move to server
-      _sendMoveToServer(token);
-    }
 
     notifyListeners();
     return result;
@@ -132,7 +232,17 @@ class GameProvider extends ChangeNotifier {
         moveToken(selectedToken);
       }
     } else {
-      // No movable token, end turn
+      // No movable token
+      if (diceValue == 6) {
+        // Extra roll on 6: roll again and let AI decide
+        await Future.delayed(const Duration(milliseconds: 600));
+        final newDice = rollDice();
+        // try autoplay again for the new roll
+        await Future.delayed(const Duration(milliseconds: 800));
+        await autoPlayAITurn();
+        return;
+      }
+
       _gameController!.endTurn();
       notifyListeners();
     }
@@ -166,10 +276,31 @@ class GameProvider extends ChangeNotifier {
     if (_socketService == null) return;
 
     try {
+      _currentUserId = userId;
+      _currentUsername = username;
       await _socketService!.connect(serverUrl, userId);
       _socketService!.joinRoom(roomId, username);
     } catch (e) {
       print('Connection error: $e');
+    }
+  }
+
+  /// Request authoritative game state from server for current room
+  Future<void> requestAuthoritativeState() async {
+    if (_socketService == null) return;
+
+    try {
+      // prefer matchedRoom.roomId -> fallback to gameState.id
+      String? roomId;
+      if (matchedRoom != null) {
+        roomId = matchedRoom['roomId'] ?? matchedRoom['room']?['roomId'];
+      }
+      roomId ??= gameState?.id;
+      if (roomId != null) {
+        _socketService!.requestState(roomId);
+      }
+    } catch (e) {
+      print('Failed to request authoritative state: $e');
     }
   }
 
@@ -178,28 +309,285 @@ class GameProvider extends ChangeNotifier {
     _socketService?.disconnect();
   }
 
-  void _sendMoveToServer(Token token) {
+  /// Request undo of last move (online)
+  void requestUndo() {
     if (_socketService == null || gameState == null) return;
+    _socketService!.requestUndo(gameState!.id, gameState!.currentPlayer.id);
+  }
 
-    _socketService!.sendTokenMove(
-      gameState!.id,
-      gameState!.currentPlayer.hashCode,
-      token.id,
-      token.position,
-      token.position,
-      token.isInHome,
-      token.isInHome,
-      LudoGameLogic.isSafePosition(token.position, token.playerColor),
+  /// Quick match: emit quick match request to server
+  void quickMatch({int maxPlayers = 4}) {
+    if (_socketService == null ||
+        _currentUserId == null ||
+        _currentUsername == null)
+      return;
+    isSearchingMatch = true;
+    notifyListeners();
+    _socketService!.quickMatch(
+      _currentUserId!,
+      _currentUsername!,
+      maxPlayers: maxPlayers,
     );
   }
 
+  /// Cancel quick match
+  void cancelQuickMatch() {
+    if (!isSearchingMatch) return;
+    isSearchingMatch = false;
+    try {
+      if (_socketService != null && _currentUserId != null) {
+        // emit cancel event to server
+        try {
+          _socketService!.socket.emit('cancel_quick_match', {
+            'playerId': _currentUserId,
+          });
+        } catch (e) {
+          // fallback: use quick match cancellation event name
+          _socketService!.socket.emit('cancel_match', {
+            'playerId': _currentUserId,
+          });
+        }
+      }
+    } catch (e) {
+      // ignore
+    }
+    notifyListeners();
+  }
+
+  void _handleMatchFound(dynamic data) {
+    // server returned match info (room)
+    matchedRoom = data;
+    isSearchingMatch = false;
+    // auto-join the room via socket service
+    try {
+      final String roomId = data['roomId'] ?? data['room']?['roomId'];
+      if (roomId != null &&
+          _socketService != null &&
+          _currentUsername != null) {
+        _socketService!.joinRoom(roomId, _currentUsername!);
+        // request authoritative state
+        _socketService!.requestState(roomId);
+      }
+    } catch (e) {
+      print('Error handling match found: $e');
+    }
+    notifyListeners();
+  }
+
+  /// Vote on pending undo request
+  void voteUndo(bool accept) {
+    if (_socketService == null || gameState == null) return;
+    _socketService!.voteUndo(
+      gameState!.id,
+      gameState!.currentPlayer.id,
+      accept,
+    );
+  }
+
+  void _handleUndoRequested(dynamic data) {
+    // Notify UI that someone requested an undo
+    pendingUndoRequest = data;
+    notifyListeners();
+  }
+
+  void _handleUndoVoteRecorded(dynamic data) {
+    // UI can show vote tally/progress
+    pendingUndoRequest = data ?? pendingUndoRequest;
+    notifyListeners();
+  }
+
+  void _handleUndoAccepted(dynamic data) {
+    // Update local state from authoritative gameState
+    if (data != null && data['gameState'] != null) {
+      _applyServerGameState(data['gameState']);
+    }
+    notifyListeners();
+  }
+
+  void _handleUndoRejected(dynamic data) {
+    // Undo rejected - show notification
+    pendingUndoRequest = null;
+    notifyListeners();
+  }
+
+  // move emitting is now handled inline in moveToken() to ensure from/to are correct
+
   void _handleRemoteDiceRoll(dynamic data) {
-    // Handle incoming dice roll from opponent
+    // Apply authoritative dice roll / state if provided by server
+    try {
+      if (data != null) {
+        // capture dice roll event for UI animation
+        try {
+          if (data['diceValue'] != null) {
+            lastMoveEvent = {
+              'diceRoll': {
+                'playerId': data['playerId'],
+                'diceValue': data['diceValue'],
+              },
+            };
+            Future.delayed(const Duration(milliseconds: 1400), () {
+              lastMoveEvent = null;
+              notifyListeners();
+            });
+          }
+        } catch (e) {}
+
+        if (data['gameState'] != null) {
+          _applyServerGameState(data['gameState']);
+          awaitingServer = false;
+        }
+      }
+    } catch (e) {
+      // ignore
+    }
     notifyListeners();
   }
 
   void _handleRemoteTokenMove(dynamic data) {
-    // Handle incoming token move from opponent
+    // Apply authoritative token move / state from server and capture for UI highlight
+    try {
+      // snapshot previous turn info for extra-turn detection
+      final String? _prevCurrentPlayerId =
+          _gameController?.gameState?.currentPlayer.id;
+      final int _prevDice = _gameController?.gameState?.diceValue ?? 0;
+      if (data != null && data['newPosition'] != null) {
+        // prepare lastMoveEvent from incoming payload
+        lastMoveEvent = Map<String, dynamic>.from(data as Map);
+
+        // If server provided full gameState, detect which tokens were killed
+        try {
+          if (data['gameState'] != null && _gameController?.gameState != null) {
+            final Map<String, dynamic> incoming = Map<String, dynamic>.from(
+              data['gameState'],
+            );
+            final List<dynamic> incomingPlayers =
+                incoming['players'] as List<dynamic>;
+            // build lookup for new token positions by playerId -> tokenId -> pos
+            final Map<String, Map<int, dynamic>> newTokenMap = {};
+            final Map<String, int> newConsecutiveMap = {};
+            for (final p in incomingPlayers) {
+              try {
+                final Map<String, dynamic> mp = Map<String, dynamic>.from(
+                  p as Map,
+                );
+                final String pid = mp['id'];
+                final int newConsec = mp['consecutiveSixes'] as int? ?? 0;
+                final List<dynamic> toks = mp['tokens'] as List<dynamic>;
+                newTokenMap[pid] = {};
+                for (final t in toks) {
+                  final Map<String, dynamic> tmap = Map<String, dynamic>.from(
+                    t as Map,
+                  );
+                  newTokenMap[pid]![tmap['id'] as int] = tmap;
+                }
+                newConsecutiveMap[pid] = newConsec;
+              } catch (e) {
+                // ignore per-player parse errors
+              }
+            }
+
+            final List<Map<String, dynamic>> killed = [];
+            final List<Map<String, dynamic>> spawned = [];
+            final oldState = _gameController!.gameState;
+            for (final player in oldState!.players) {
+              for (final token in player.tokens) {
+                final newToken = newTokenMap[player.id]?[token.id];
+                final int? newPos = newToken != null
+                    ? (newToken['position'] as int?)
+                    : null;
+                final bool newKilled = newToken != null
+                    ? (newToken['isKilled'] as bool? ?? false)
+                    : false;
+
+                // detect kill: previously on-board, now removed/killed
+                if (token.position >= 0 &&
+                    (newPos == null || newPos < 0 || newKilled)) {
+                  killed.add({
+                    'playerId': player.id,
+                    'tokenId': token.id,
+                    'from': token.position,
+                    'to': newPos ?? -1,
+                  });
+                }
+
+                // detect spawn/opening: previously in home (-1) and now on board (>=0)
+                if (token.position < 0 && (newPos != null && newPos >= 0)) {
+                  spawned.add({
+                    'playerId': player.id,
+                    'tokenId': token.id,
+                    'from': token.position,
+                    'to': newPos,
+                  });
+                }
+              }
+            }
+
+            if (killed.isNotEmpty) {
+              lastMoveEvent!['killedTokens'] = killed;
+            }
+            if (spawned.isNotEmpty) {
+              lastMoveEvent!['spawnedTokens'] = spawned;
+            }
+
+            // detect extra-turn: if prev current player stays same after server state
+            try {
+              final String? newCurrent = incoming['currentPlayerIndex'] != null
+                  ? (incoming['players']
+                        as List<dynamic>)[incoming['currentPlayerIndex']]['id']
+                  : null;
+              if (_prevCurrentPlayerId != null &&
+                  newCurrent != null &&
+                  _prevCurrentPlayerId == newCurrent &&
+                  _prevDice == 6) {
+                lastMoveEvent!['extraTurn'] = true;
+              }
+            } catch (e) {
+              // ignore
+            }
+
+            // Detect three-consecutive-six penalty: if a player's consecutiveSixes
+            // dropped from >=3 to 0 in the incoming state, mark a penalty.
+            try {
+              final List<Map<String, dynamic>> penalties = [];
+              for (final player in oldState.players) {
+                final int oldConsec = player.consecutiveSixes;
+                final int newConsec = newConsecutiveMap[player.id] ?? oldConsec;
+                if (oldConsec >= 3 && newConsec == 0) {
+                  penalties.add({
+                    'playerId': player.id,
+                    'type': 'three_consecutive_sixes',
+                  });
+                }
+              }
+              if (penalties.isNotEmpty) {
+                lastMoveEvent!['penalties'] = penalties;
+              }
+            } catch (e) {
+              // ignore
+            }
+          }
+        } catch (e) {
+          // ignore detection errors
+        }
+
+        // clear after 2.5s
+        Future.delayed(const Duration(milliseconds: 2500), () {
+          lastMoveEvent = null;
+          notifyListeners();
+        });
+      }
+
+      if (data != null && data['gameState'] != null) {
+        _applyServerGameState(data['gameState']);
+        awaitingServer = false;
+      } else if (data != null && data['roomId'] != null) {
+        // server may only give room id -> request full state
+        _socketService?.requestState(data['roomId']);
+        // keep awaitingServer true until state arrives
+      }
+    } catch (e) {
+      // ignore
+    }
     notifyListeners();
   }
 
@@ -210,7 +598,25 @@ class GameProvider extends ChangeNotifier {
 
   void _handleRemoteStateSync(dynamic data) {
     // Sync game state from server
+    if (data != null && data['state'] != null) {
+      _applyServerGameState(data['state']);
+    }
     notifyListeners();
+  }
+
+  void _applyServerGameState(dynamic stateJson) {
+    if (_gameController == null) return;
+
+    try {
+      final Map<String, dynamic> m = Map<String, dynamic>.from(stateJson);
+      final serverState = GameState.fromJson(m);
+      _gameController!.gameState = serverState;
+      // trigger any controller callbacks and update listeners
+      _gameController!.onGameStateChanged?.call();
+      notifyListeners();
+    } catch (e) {
+      print('Failed to apply server game state: $e');
+    }
   }
 
   @override
@@ -218,4 +624,9 @@ class GameProvider extends ChangeNotifier {
     _socketService?.disconnect();
     super.dispose();
   }
+
+  // Public getters for UI access
+  String? get currentUserId => _currentUserId;
+  String? get currentUsername => _currentUsername;
+  LudoSocketService? get socketService => _socketService;
 }

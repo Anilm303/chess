@@ -1,7 +1,11 @@
 // Ludo Home Screen - Main Menu
 import 'package:flutter/material.dart';
 import '../models/ludo_models.dart';
+import 'package:provider/provider.dart';
+import '../providers/game_provider.dart';
 import 'ludo_game_screen.dart';
+import 'ludo_lobby_screen.dart';
+import '../widgets/cancel_match_button.dart';
 
 class LudoHomeScreen extends StatefulWidget {
   const LudoHomeScreen({Key? key}) : super(key: key);
@@ -13,6 +17,7 @@ class LudoHomeScreen extends StatefulWidget {
 class _LudoHomeScreenState extends State<LudoHomeScreen>
     with SingleTickerProviderStateMixin {
   late AnimationController _animationController;
+  bool _navigating = false;
 
   @override
   void initState() {
@@ -32,109 +37,213 @@ class _LudoHomeScreenState extends State<LudoHomeScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              Colors.purple[400]!,
-              Colors.blue[600]!,
-              Colors.indigo[700]!,
-            ],
-          ),
-        ),
-        child: SafeArea(
-          child: SingleChildScrollView(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                children: [
-                  const SizedBox(height: 20),
-                  // Game title with animation
-                  ScaleTransition(
-                    scale: Tween<double>(
-                      begin: 0.8,
-                      end: 1.0,
-                    ).animate(_animationController),
-                    child: const Text(
-                      '🎲 LUDO GAME',
-                      style: TextStyle(
-                        fontSize: 36,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                        letterSpacing: 2,
-                      ),
-                      textAlign: TextAlign.center,
+      body: Consumer<GameProvider>(
+        builder: (context, gp, child) {
+          // if matchmaking produced a room, navigate to game screen once
+          if (gp.matchedRoom != null && !_navigating) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              _navigating = true;
+              try {
+                // extract players if provided, otherwise navigate with empty list
+                final data = gp.matchedRoom as Map<String, dynamic>;
+                final playersData = data['players'] as List<dynamic>?;
+                List<Player> players = [];
+                if (playersData != null) {
+                  players = playersData.map((p) {
+                    return Player(
+                      id: p['id'] ?? p['playerId'] ?? UniqueKey().toString(),
+                      name: p['name'] ?? 'Player',
+                      color:
+                          PlayerColor.values[(p['colorIndex'] ?? 0) %
+                              PlayerColor.values.length],
+                      type: PlayerType.human,
+                    );
+                  }).toList();
+                }
+
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => LudoGameScreen(
+                      players: players,
+                      gameMode: GameMode.online,
                     ),
                   ),
-                  const SizedBox(height: 10),
-                  const Text(
-                    'The Classic Board Game',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.white70,
-                      letterSpacing: 1,
+                );
+              } catch (e) {
+                // fallback: open empty online game screen
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) =>
+                        LudoGameScreen(players: [], gameMode: GameMode.online),
+                  ),
+                );
+              }
+            });
+          }
+
+          final children = <Widget>[
+            Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    Colors.purple[400]!,
+                    Colors.blue[600]!,
+                    Colors.indigo[700]!,
+                  ],
+                ),
+              ),
+              child: SafeArea(
+                child: SingleChildScrollView(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      children: [
+                        const SizedBox(height: 20),
+                        // Game title with animation
+                        ScaleTransition(
+                          scale: Tween<double>(
+                            begin: 0.8,
+                            end: 1.0,
+                          ).animate(_animationController),
+                          child: const Text(
+                            '🎲 LUDO GAME',
+                            style: TextStyle(
+                              fontSize: 36,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                              letterSpacing: 2,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        const Text(
+                          'The Classic Board Game',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.white70,
+                            letterSpacing: 1,
+                          ),
+                        ),
+                        const SizedBox(height: 40),
+
+                        // Game mode buttons
+                        _buildGameModeButton(
+                          context,
+                          'Play Offline',
+                          Icons.people,
+                          Colors.orange,
+                          () => _showOfflineOptions(context),
+                        ),
+                        const SizedBox(height: 16),
+
+                        _buildGameModeButton(
+                          context,
+                          'Play Online',
+                          Icons.cloud,
+                          Colors.green,
+                          () => _showOnlineOptions(context),
+                        ),
+                        const SizedBox(height: 16),
+
+                        ElevatedButton(
+                          onPressed: () {
+                            final gpLocal = context.read<GameProvider>();
+                            gpLocal.quickMatch();
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Searching for quick match...'),
+                              ),
+                            );
+                          },
+                          style: ElevatedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 40,
+                              vertical: 16,
+                            ),
+                            backgroundColor: Colors.deepPurple,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          child: const Text(
+                            'Quick Match',
+                            style: TextStyle(fontSize: 18, color: Colors.white),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+
+                        _buildGameModeButton(
+                          context,
+                          'VS Computer',
+                          Icons.computer,
+                          Colors.red,
+                          () => _startVsComputer(context),
+                        ),
+                        const SizedBox(height: 16),
+
+                        _buildGameModeButton(
+                          context,
+                          'Settings',
+                          Icons.settings,
+                          Colors.teal,
+                          () => _showSettings(context),
+                        ),
+                        const SizedBox(height: 16),
+
+                        _buildGameModeButton(
+                          context,
+                          'Leaderboard',
+                          Icons.leaderboard,
+                          Colors.amber,
+                          () => _showLeaderboard(context),
+                        ),
+                        const SizedBox(height: 40),
+
+                        // Footer
+                        const Text(
+                          'Classic Indian Board Game',
+                          style: TextStyle(fontSize: 12, color: Colors.white54),
+                        ),
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 40),
-
-                  // Game mode buttons
-                  _buildGameModeButton(
-                    context,
-                    'Play Offline',
-                    Icons.people,
-                    Colors.orange,
-                    () => _showOfflineOptions(context),
-                  ),
-                  const SizedBox(height: 16),
-
-                  _buildGameModeButton(
-                    context,
-                    'Play Online',
-                    Icons.cloud,
-                    Colors.green,
-                    () => _showOnlineOptions(context),
-                  ),
-                  const SizedBox(height: 16),
-
-                  _buildGameModeButton(
-                    context,
-                    'VS Computer',
-                    Icons.computer,
-                    Colors.red,
-                    () => _startVsComputer(context),
-                  ),
-                  const SizedBox(height: 16),
-
-                  _buildGameModeButton(
-                    context,
-                    'Settings',
-                    Icons.settings,
-                    Colors.teal,
-                    () => _showSettings(context),
-                  ),
-                  const SizedBox(height: 16),
-
-                  _buildGameModeButton(
-                    context,
-                    'Leaderboard',
-                    Icons.leaderboard,
-                    Colors.amber,
-                    () => _showLeaderboard(context),
-                  ),
-                  const SizedBox(height: 40),
-
-                  // Footer
-                  const Text(
-                    'Classic Indian Board Game',
-                    style: TextStyle(fontSize: 12, color: Colors.white54),
-                  ),
-                ],
+                ),
               ),
             ),
-          ),
-        ),
+          ];
+
+          if (gp.isSearchingMatch) {
+            children.add(
+              Positioned.fill(
+                child: Container(
+                  color: Colors.black45,
+                  child: Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const CircularProgressIndicator(),
+                        const SizedBox(height: 12),
+                        const Text(
+                          'Searching for match...',
+                          style: TextStyle(color: Colors.white),
+                        ),
+                        const SizedBox(height: 12),
+                        CancelMatchButton(),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            );
+          }
+
+          return Stack(children: children);
+        },
       ),
     );
   }
@@ -241,7 +350,10 @@ class _LudoHomeScreenState extends State<LudoHomeScreen>
               title: const Text('Join Room'),
               onTap: () {
                 Navigator.pop(context);
-                // TODO: Implement join room
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const LudoLobbyScreen()),
+                );
               },
             ),
           ],

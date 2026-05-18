@@ -6,8 +6,13 @@ import 'dart:async';
 import 'package:image_picker/image_picker.dart';
 import '../models/message_model.dart';
 import 'api_service.dart';
+import 'friend_service.dart';
 
 class MessageService extends ChangeNotifier {
+  final FriendService? _friendService;
+
+  MessageService({FriendService? friendService})
+    : _friendService = friendService;
   List<ChatUser> _allUsers = [];
   List<ChatUser> _conversations = [];
   List<GroupChat> _groups = [];
@@ -28,7 +33,12 @@ class MessageService extends ChangeNotifier {
 
   // For polling real-time messages
   Timer? _pollTimer;
+  // Heartbeat timer to keep last-seen updated
+  Timer? _heartbeatTimer;
   static const Duration _pollInterval = Duration(seconds: 3);
+  // Typing throttle map
+  final Map<String, DateTime> _lastTypingSent = {};
+  static const Duration _typingThrottle = Duration(milliseconds: 700);
 
   // Getters
   List<ChatUser> get allUsers => _allUsers;
@@ -391,6 +401,16 @@ class MessageService extends ChangeNotifier {
           connected: true,
           status: 'Connected',
         );
+        // Start heartbeat to server every 30 seconds
+        try {
+          _heartbeatTimer?.cancel();
+          _heartbeatTimer = Timer.periodic(Duration(seconds: 30), (_) {
+            final username = _currentUserProfile?.username;
+            if (username != null && _socket?.connected == true) {
+              _socket?.emit('heartbeat', {'username': username});
+            }
+          });
+        } catch (_) {}
       })
       ..onDisconnect((_) {
         _logHttp('Socket disconnected');
@@ -534,6 +554,15 @@ class MessageService extends ChangeNotifier {
           );
         }
         notifyListeners();
+        // Acknowledge receipt to server
+        try {
+          if (currentUsername != null && message.id != null) {
+            _socket?.emit('message_ack', {
+              'username': currentUsername,
+              'message_ids': [message.id],
+            });
+          }
+        } catch (_) {}
       })
       ..on('group_message_received', (data) async {
         _logHttp('Socket event group_message_received: $data');
@@ -558,6 +587,14 @@ class MessageService extends ChangeNotifier {
         if (sender != null && sender.isNotEmpty) {
           _setDirectTyping(sender, isTyping);
         }
+      })
+      ..on('friend_request', (data) {
+        _logHttp('Socket event friend_request: $data');
+        try {
+          if (_friendService != null && _socketToken != null) {
+            _friendService!.fetchRequests(_socketToken!);
+          }
+        } catch (_) {}
       })
       ..on('group_user_typing', (data) {
         _logHttp('Socket event group_user_typing: $data');
@@ -648,6 +685,8 @@ class MessageService extends ChangeNotifier {
     _socket?.disconnect();
     _socket?.dispose();
     _socket = null;
+    _heartbeatTimer?.cancel();
+    _heartbeatTimer = null;
   }
 
   void sendTyping({
@@ -657,6 +696,11 @@ class MessageService extends ChangeNotifier {
   }) {
     final username = _currentUserProfile?.username;
     if (username == null || _socket?.connected != true) return;
+    final now = DateTime.now();
+    final key = isGroupChat ? 'group:$targetId' : 'user:$targetId';
+    final last = _lastTypingSent[key];
+    if (last != null && now.difference(last) < _typingThrottle) return;
+    _lastTypingSent[key] = now;
     if (isGroupChat) {
       _socket?.emit('group_typing', {
         'group_id': targetId,

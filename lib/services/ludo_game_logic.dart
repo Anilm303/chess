@@ -5,45 +5,38 @@ import 'package:uuid/uuid.dart';
 import '../models/ludo_models.dart';
 
 class LudoGameLogic {
-  static const int boardSize = 52;
-  static const int homePathSize = 6;
   static final Random _random = Random();
 
   /// Roll dice (1-6)
-  static int rollDice() {
-    return _random.nextInt(6) + 1;
-  }
+  static int rollDice() => _random.nextInt(6) + 1;
 
-  /// Get starting position for a player color
+  /// Convenience getters from BoardConfig
+  static int get mainBoardSize => BoardConfig.totalPositions; // 52
+  static int get homePathSize => BoardConfig.homePositions; // 6
+
   static int getPlayerStartPosition(PlayerColor color) {
     return BoardConfig.playerStartPositions[color] ?? 0;
   }
 
-  /// Check if a position is a safe zone
   static bool isSafePosition(int position, PlayerColor playerColor) {
-    if (position == -1 || position >= boardSize + homePathSize) {
-      return true; // Home is safe
-    }
+    if (position < 0) return true; // off-board/start is safe
+    if (position >= mainBoardSize)
+      return true; // any home-path position is safe
     return BoardConfig.safePositions.contains(position);
   }
 
-  /// Get home entry position for a player
   static int getHomeEntryPosition(PlayerColor color) {
     return BoardConfig.homeEntryPositions[color] ?? 0;
   }
 
-  /// Get all board position coordinates for rendering
   static Map<int, Offset> getBoardPositionCoordinates() {
-    // This creates a circular board layout
-    // Position 0 is top-right (red start)
-    // Positions increase clockwise
     final Map<int, Offset> coords = {};
     const double centerX = 300;
     const double centerY = 300;
     const double radius = 250;
 
-    for (int i = 0; i < boardSize; i++) {
-      final angle = (i * 360 / boardSize - 90) * (pi / 180);
+    for (int i = 0; i < mainBoardSize; i++) {
+      final angle = (i * 360 / mainBoardSize - 90) * (pi / 180);
       coords[i] = Offset(
         centerX + radius * cos(angle),
         centerY + radius * sin(angle),
@@ -53,207 +46,183 @@ class LudoGameLogic {
     return coords;
   }
 
-  /// Check if token can be moved
+  /// Check if token can be moved by given dice
   static bool canTokenBeMoved(Token token, int diceValue) {
-    if (token.isKilled) return false;
+    // If token was killed (sent back to home), allow it to be moved out
+    // when the player rolls a 6 so it can spawn back onto the board.
+    if (token.isKilled) return diceValue == 6;
 
-    // Token must be opened first
+    // token not opened
     if (token.position == -1) {
-      return diceValue == 6; // Can open token only on 6
+      return diceValue == 6;
     }
 
-    // Token in home path needs exact dice
+    // token in home path: allow move only if it doesn't overshoot final cell
     if (token.isInHome) {
-      final remainingSteps = homePathSize - (token.position - boardSize);
-      return diceValue == remainingSteps;
+      final finalIndex = mainBoardSize + homePathSize - 1;
+      final remainingSteps = finalIndex - token.position;
+      return diceValue <= remainingSteps && remainingSteps > 0;
     }
 
+    // on main board always allowed (subject to other game rules)
     return true;
   }
 
-  /// Calculate new position after dice roll
+  /// Calculate new absolute position for a token, or return current position if move not allowed.
   static int calculateNewPosition(
     Token token,
     int diceValue,
     PlayerColor playerColor,
   ) {
-    // Token opening
+    // opening token
     if (token.position == -1) {
-      if (diceValue == 6) {
-        return getPlayerStartPosition(playerColor);
-      }
+      if (diceValue == 6) return getPlayerStartPosition(playerColor);
       return -1;
     }
 
-    // Token in home path
+    // token already in home path
     if (token.isInHome) {
+      final finalIndex = mainBoardSize + homePathSize - 1;
       final newPos = token.position + diceValue;
-      if (newPos >= boardSize + homePathSize) {
-        return boardSize + homePathSize; // Reached home
-      }
+      if (newPos > finalIndex) return token.position; // cannot overshoot
       return newPos;
     }
 
-    // Token in main board
+    // token on main board
     final int startPos = getPlayerStartPosition(playerColor);
-    final int currentSteps = (token.position - startPos + boardSize) % boardSize;
+    final int stepsFromStart =
+        (token.position - startPos + mainBoardSize) % mainBoardSize;
+    final int totalSteps = stepsFromStart + diceValue;
 
-    if (currentSteps + diceValue > 51) {
-      // Token would pass the entry point to the home path
-      final int stepsIntoHome = (currentSteps + diceValue) - 51;
-
-      // Check if it reaches or stays within the home path (including center at 6)
+    if (totalSteps > mainBoardSize - 1) {
+      final int stepsIntoHome = totalSteps - (mainBoardSize - 1);
       if (stepsIntoHome <= homePathSize) {
-        return boardSize + stepsIntoHome - 1; // Maps to 52, 53, 54, 55, 56, 57
+        return mainBoardSize +
+            stepsIntoHome -
+            1; // first home cell = mainBoardSize
       }
-      // If it exceeds the center, it cannot move (needs exact dice)
-      return token.position;
+      return token.position; // overshoots home
     }
 
-    // Normal move around the board
-    return (token.position + diceValue) % boardSize;
+    return (token.position + diceValue) % mainBoardSize;
   }
 
-  /// Get all movable tokens for current player
   static List<Token> getMovableTokens(Player player, int diceValue) {
-    return player.tokens.where((token) {
-      return canTokenBeMoved(token, diceValue);
-    }).toList();
+    return player.tokens.where((t) => canTokenBeMoved(t, diceValue)).toList();
   }
 
-  /// Check if there are opponent tokens at position to kill
   static List<Token> getTokensAtPosition(
     List<Player> players,
     int position,
     PlayerColor excludeColor,
   ) {
     final tokens = <Token>[];
-
     for (final player in players) {
       if (player.color == excludeColor) continue;
-
       for (final token in player.tokens) {
-        if (token.position == position && !token.isKilled) {
-          tokens.add(token);
-        }
+        if (!token.isKilled && token.position == position) tokens.add(token);
       }
     }
-
     return tokens;
   }
 
-  /// Kill opponent tokens at position
   static void killTokensAtPosition(
     List<Player> players,
     int position,
     PlayerColor excludeColor,
   ) {
+    // Group tokens by player color to detect blocks
+    final Map<PlayerColor, List<Token>> groups = {};
     for (final player in players) {
       if (player.color == excludeColor) continue;
-
       for (final token in player.tokens) {
-        if (token.position == position && !token.isKilled) {
-          token.isKilled = true;
-          token.position = -1; // Reset to start
+        if (!token.isKilled && token.position == position) {
+          groups.putIfAbsent(player.color, () => []).add(token);
         }
+      }
+    }
+
+    // If a color has 2 or more tokens here, it's a block and is protected
+    for (final entry in groups.entries) {
+      if (entry.value.length >= 2) continue; // protected block
+      for (final t in entry.value) {
+        t.isKilled = true;
+        t.position = -1;
+        t.isInHome = false;
       }
     }
   }
 
-  /// Execute a move
   static void executeMove(GameState gameState, Token token, int diceValue) {
     final player = gameState.currentPlayer;
-    final oldPosition = token.position;
-    final newPosition = calculateNewPosition(token, diceValue, player.color);
+    final oldPos = token.position;
+    final newPos = calculateNewPosition(token, diceValue, player.color);
 
-    // Move token
-    token.position = newPosition;
+    // no-op if cannot move
+    if (newPos == token.position) return;
 
-    // Check if entered home
-    if (newPosition >= BoardConfig.totalPositions) {
-      token.isInHome = true;
-      if (newPosition >= BoardConfig.totalPositions + homePathSize) {
-        token.isKilled = false; // Token reached home (victory)
-        player.tokensReachedHome++;
-      }
+    token.position = newPos;
+    token.isKilled = false; // revived by moving
+    token.isInHome = newPos >= mainBoardSize;
+
+    // check if token reached final home cell
+    final finalIndex = mainBoardSize + homePathSize - 1;
+    if (token.isInHome && token.position == finalIndex) {
+      // increment finished counter for player
+      player.tokensReachedHome++;
     }
 
-    // Check for kills (only on main board and not on safe zones)
-    if (!token.isInHome && !isSafePosition(newPosition, player.color)) {
-      final killedTokens = getTokensAtPosition(
+    // handle kills: only on main board and only if landed on non-safe cell
+    if (!token.isInHome && !isSafePosition(newPos, player.color)) {
+      final victims = getTokensAtPosition(
         gameState.players,
-        newPosition,
+        newPos,
         player.color,
       );
-
-      if (killedTokens.isNotEmpty) {
-        for (final killedToken in killedTokens) {
-          killedToken.isKilled = true;
-          killedToken.position = -1;
-        }
+      if (victims.isNotEmpty) {
+        killTokensAtPosition(gameState.players, newPos, player.color);
       }
     }
   }
 
-  /// Check if player has won
-  static bool checkWin(Player player) {
-    return player.tokensReachedHome == 4;
-  }
+  static bool checkWin(Player player) => player.tokensReachedHome == 4;
 
-  /// Check if dice is 6 (extra turn)
-  static bool isDiceSix(int diceValue) {
-    return diceValue == 6;
-  }
+  static bool isDiceSix(int diceValue) => diceValue == 6;
 
-  /// Validate if a move is legal
   static bool isMoveLegal(
     Token token,
     int diceValue,
     int fromPosition,
     int toPosition,
   ) {
-    if (!canTokenBeMoved(token, diceValue)) {
-      return false;
-    }
-
+    if (!canTokenBeMoved(token, diceValue)) return false;
     final newPos = calculateNewPosition(token, diceValue, token.playerColor);
     return newPos == toPosition;
   }
 
-  /// Get relative progress of token (0-51)
   static int getRelativeProgress(Token token) {
     if (token.position == -1) return -1;
+    if (token.position >= mainBoardSize)
+      return mainBoardSize + (token.position - mainBoardSize);
     return token.position;
   }
 
-  /// Get projected progress after move
   static int getProjectedProgress(Token token, int diceValue) {
-    if (token.position == -1 && diceValue != 6) {
-      return -1;
-    }
-
-    final startPos = getPlayerStartPosition(token.playerColor);
+    if (token.position == -1 && diceValue != 6) return -1;
     final projected = calculateNewPosition(token, diceValue, token.playerColor);
-
-    if (token.position == -1 && diceValue == 6) {
-      return startPos;
-    }
-
+    if (token.position == -1 && diceValue == 6)
+      return getPlayerStartPosition(token.playerColor);
     return projected;
   }
 
-  /// Get next position
-  static int getNextPosition(Token token, int diceValue) {
-    return calculateNewPosition(token, diceValue, token.playerColor);
-  }
+  static int getNextPosition(Token token, int diceValue) =>
+      calculateNewPosition(token, diceValue, token.playerColor);
 
-  /// Check if token will enter winning path
   static bool willEnterWinningPath(Token token, int diceValue) {
     final newPos = calculateNewPosition(token, diceValue, token.playerColor);
-    return newPos >= boardSize;
+    return newPos >= mainBoardSize;
   }
 
-  /// Get safe positions list
   static List<int> get safePositions => BoardConfig.safePositions;
 }
 
@@ -286,6 +255,8 @@ class GameController {
 
   int rollDice() {
     if (!gameState.isPlaying) return 0;
+    // Prevent rolling multiple times before resolving current roll
+    if (gameState.diceRolled) return gameState.diceValue;
 
     gameState.diceValue = LudoGameLogic.rollDice();
     gameState.diceRolled = true;
@@ -298,6 +269,7 @@ class GameController {
 
     gameState.canMove = movableTokens.isNotEmpty;
 
+    // If no movable tokens but dice is 6, allow extra roll later (UI/AI handles)
     onGameStateChanged?.call();
     return gameState.diceValue;
   }
@@ -348,8 +320,35 @@ class GameController {
 
   void endTurn() {
     gameState.currentPlayer.consecutiveSixes = 0;
-    gameState.currentPlayerIndex =
-        (gameState.currentPlayerIndex + 1) % gameState.players.length;
+
+    final n = gameState.players.length;
+    if (n == 0) return;
+
+    final start = gameState.currentPlayerIndex;
+    bool found = false;
+
+    for (int i = 1; i <= n; i++) {
+      final nextIndex = (start + i) % n;
+      final candidate = gameState.players[nextIndex];
+
+      // skip players who already finished
+      if (candidate.tokensReachedHome >= 4) continue;
+
+      // found next player
+      gameState.currentPlayerIndex = nextIndex;
+      found = true;
+      break;
+    }
+
+    if (!found) {
+      // no eligible players left -> finish game
+      gameState.status = GameStatus.finished;
+      gameState.endedAt = DateTime.now();
+      onGameEnded?.call(gameState.winner);
+      onGameStateChanged?.call();
+      return;
+    }
+
     gameState.diceValue = 0;
     gameState.diceRolled = false;
     gameState.canMove = false;

@@ -24,6 +24,7 @@ import '../services/message_service.dart';
 import '../services/note_service.dart';
 import '../services/notification_service.dart';
 import '../services/story_service.dart';
+import '../services/friend_service.dart';
 import '../services/theme_service.dart';
 import '../theme/colors.dart';
 
@@ -1456,6 +1457,7 @@ class _MessagingScreenState extends State<MessagingScreen> {
     BuildContext context,
   ) {
     final user = entry.user;
+    final friendService = context.watch<FriendService>();
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -1566,6 +1568,53 @@ class _MessagingScreenState extends State<MessagingScreen> {
                     ),
                   ),
                 ],
+              ),
+              const SizedBox(width: 6),
+              // Friend request button: show add icon if not friends
+              Builder(
+                builder: (ctx) {
+                  final isFriend = friendService.contacts.any(
+                    (c) => c['username'] == user.username,
+                  );
+                  final hasRequested = friendService.requests.contains(
+                    user.username,
+                  );
+                  if (isFriend) {
+                    return const Icon(Icons.check, color: Colors.green);
+                  }
+                  if (hasRequested) {
+                    return IconButton(
+                      icon: const Icon(Icons.hourglass_top),
+                      onPressed: null,
+                    );
+                  }
+                  return IconButton(
+                    icon: const Icon(Icons.person_add_alt_1),
+                    tooltip: 'Send friend request',
+                    onPressed: () async {
+                      if (authService.accessToken == null) return;
+                      final ok = await friendService.sendRequest(
+                        authService.accessToken!,
+                        user.username,
+                      );
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            ok
+                                ? 'Request sent to ${user.username}'
+                                : 'Failed: ${friendService.error}',
+                          ),
+                        ),
+                      );
+                      if (ok) {
+                        // refresh local lists
+                        await friendService.fetchRequests(
+                          authService.accessToken!,
+                        );
+                      }
+                    },
+                  );
+                },
               ),
             ],
           ),
