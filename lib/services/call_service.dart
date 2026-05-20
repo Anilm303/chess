@@ -38,6 +38,8 @@ class CallService extends ChangeNotifier {
   final Map<String, RTCPeerConnection> _peerConnections = {};
   final Set<String> _offeredPeers = <String>{};
   final Set<String> _offerInProgress = <String>{};
+  final Map<String, List<RTCIceCandidate>> _iceBuffer = {};
+  final Map<String, bool> _remoteSdpSet = {};
   final List<CallParticipant> _participants = [];
   String? _error;
 
@@ -265,6 +267,9 @@ class CallService extends ChangeNotifier {
       await pc.setRemoteDescription(
         RTCSessionDescription(offerData['sdp']?.toString() ?? '', 'offer'),
       );
+      // mark remote SDP set and flush any buffered ICE
+      _remoteSdpSet[from] = true;
+      await _flushIceCandidatesForPeer(from);
 
       _log('📝 Creating answer...');
       final answer = await pc.createAnswer();
@@ -305,6 +310,9 @@ class CallService extends ChangeNotifier {
       await pc.setRemoteDescription(
         RTCSessionDescription(answerData['sdp']?.toString() ?? '', 'answer'),
       );
+      // mark remote SDP set and flush buffered ICE
+      _remoteSdpSet[from] = true;
+      await _flushIceCandidatesForPeer(from);
       if (_status != CallStatus.connected) {
         _status = CallStatus.connected;
         _startCallDurationTimer();
@@ -325,22 +333,55 @@ class CallService extends ChangeNotifier {
       final from = iceData['from']?.toString() ?? '';
       if (from.isEmpty) return;
 
-      final pc = _peerConnections[from];
-      if (pc == null) {
-        _log('⚠️ No peer for ICE from $from');
-        return;
-      }
-
+      var pc = _peerConnections[from];
       final candidate = RTCIceCandidate(
         iceData['candidate']?.toString(),
         iceData['sdpMid']?.toString(),
         iceData['sdpMLineIndex'] as int?,
       );
 
-      await pc.addCandidate(candidate);
-      _log('✅ ICE candidate added');
+      if (pc == null) {
+        _log('⚠️ No peer for ICE from $from — creating peer and buffering ICE');
+        try {
+          pc = await _createPeerConnection(from);
+        } catch (e) {
+          _log('❌ Failed to create peer for ICE buffering: $e');
+          return;
+        }
+      }
+
+      final remoteSet = _remoteSdpSet[from] == true;
+      if (!remoteSet) {
+        _log('🧊 Remote SDP not set for $from — buffering ICE candidate');
+        _iceBuffer.putIfAbsent(from, () => <RTCIceCandidate>[]).add(candidate);
+        return;
+      }
+
+      try {
+        await pc.addCandidate(candidate);
+        _log('✅ ICE candidate added');
+      } catch (e) {
+        _log('⚠️ Error adding buffered ICE candidate: $e');
+      }
     } catch (e) {
       _log('⚠️ Error adding ICE: $e');
+    }
+  }
+
+  Future<void> _flushIceCandidatesForPeer(String remoteUser) async {
+    final pc = _peerConnections[remoteUser];
+    if (pc == null) return;
+    final buffered = _iceBuffer.remove(remoteUser) ?? [];
+    if (buffered.isEmpty) return;
+    _log(
+      '🔁 Flushing ${buffered.length} buffered ICE candidates for $remoteUser',
+    );
+    for (final cand in buffered) {
+      try {
+        await pc.addCandidate(cand);
+      } catch (e) {
+        _log('⚠️ Failed to add buffered ICE candidate: $e');
+      }
     }
   }
 
@@ -755,6 +796,9 @@ class CallService extends ChangeNotifier {
       _log('✅ Added ${tracks.length} tracks');
 
       _peerConnections[remoteUser] = pc;
+      // initialize remote SDP flag and ice buffer for this peer
+      _remoteSdpSet[remoteUser] = false;
+      _iceBuffer.putIfAbsent(remoteUser, () => <RTCIceCandidate>[]);
       _log('✅ Peer created for $remoteUser');
       return pc;
     } catch (e) {
@@ -864,6 +908,13 @@ class CallService extends ChangeNotifier {
     _peerConnections.remove(username);
     _offeredPeers.remove(username);
     _offerInProgress.remove(username);
+    // cleanup ICE buffer and remote SDP tracking
+    try {
+      _iceBuffer.remove(username);
+    } catch (_) {}
+    try {
+      _remoteSdpSet.remove(username);
+    } catch (_) {}
 
     try {
       _remoteRenderers[username]?.dispose();

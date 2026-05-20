@@ -324,4 +324,41 @@ class ApiService {
       rethrow;
     }
   }
+
+  // Request password reset for an email. In development, backend may return the token.
+  static Future<Map<String, dynamic>> forgotPassword({
+    required String email,
+  }) async {
+    try {
+      final body = {'email': email};
+      final response = await _post('/auth/forgot-password', {
+        'Content-Type': 'application/json',
+      }, body);
+
+      final decoded = _decodeJsonMap(response.body) ?? {};
+      return {'statusCode': response.statusCode, 'body': decoded};
+    } catch (e) {
+      if (kDebugMode) print('❌ forgotPassword error: $e');
+      rethrow;
+    }
+  }
+
+  // Reset password using token provided by email (or dev response)
+  static Future<Map<String, dynamic>> resetPassword({
+    required String token,
+    required String newPassword,
+  }) async {
+    try {
+      final body = {'token': token, 'new_password': newPassword};
+      final response = await _post('/auth/reset-password', {
+        'Content-Type': 'application/json',
+      }, body);
+
+      final decoded = _decodeJsonMap(response.body) ?? {};
+      return {'statusCode': response.statusCode, 'body': decoded};
+    } catch (e) {
+      if (kDebugMode) print('❌ resetPassword error: $e');
+      rethrow;
+    }
+  }
 }

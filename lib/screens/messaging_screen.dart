@@ -100,8 +100,26 @@ class _MessagingScreenState extends State<MessagingScreen> {
     final authService = context.read<AuthService>();
     final callService = context.read<CallService>();
     final messageService = context.read<MessageService>();
+    final friendService = context.read<FriendService>();
 
     if (authService.accessToken == null) return;
+
+    var isFriend = friendService.isFriend(user.username);
+    if (!isFriend) {
+      await friendService.fetchContacts(authService.accessToken!);
+      isFriend = friendService.isFriend(user.username);
+    }
+
+    if (!isFriend) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Call is available only after becoming friends'),
+          ),
+        );
+      }
+      return;
+    }
 
     try {
       await callService.startOutgoingCall(
@@ -1539,43 +1557,49 @@ class _MessagingScreenState extends State<MessagingScreen> {
                     ),
                   ),
                 ),
-              PopupMenuButton<String>(
-                icon: const Icon(
-                  Icons.call,
-                  color: MessengerColors.messengerBlue,
-                ),
-                onSelected: (value) =>
-                    _startConversationCall(user, value == 'video'),
-                itemBuilder: (context) => const [
-                  PopupMenuItem(
-                    value: 'audio',
-                    child: Row(
-                      children: [
-                        Icon(Icons.call),
-                        SizedBox(width: 10),
-                        Text('Audio call'),
-                      ],
+              Builder(
+                builder: (ctx) {
+                  final isFriend = friendService.isFriend(user.username);
+                  return PopupMenuButton<String>(
+                    enabled: isFriend,
+                    icon: Icon(
+                      Icons.call,
+                      color: isFriend
+                          ? MessengerColors.messengerBlue
+                          : Colors.grey,
                     ),
-                  ),
-                  PopupMenuItem(
-                    value: 'video',
-                    child: Row(
-                      children: [
-                        Icon(Icons.videocam),
-                        SizedBox(width: 10),
-                        Text('Video call'),
-                      ],
-                    ),
-                  ),
-                ],
+                    onSelected: (value) =>
+                        _startConversationCall(user, value == 'video'),
+                    itemBuilder: (context) => const [
+                      PopupMenuItem(
+                        value: 'audio',
+                        child: Row(
+                          children: [
+                            Icon(Icons.call),
+                            SizedBox(width: 10),
+                            Text('Audio call'),
+                          ],
+                        ),
+                      ),
+                      PopupMenuItem(
+                        value: 'video',
+                        child: Row(
+                          children: [
+                            Icon(Icons.videocam),
+                            SizedBox(width: 10),
+                            Text('Video call'),
+                          ],
+                        ),
+                      ),
+                    ],
+                  );
+                },
               ),
               const SizedBox(width: 6),
               // Friend request button: show add icon if not friends
               Builder(
                 builder: (ctx) {
-                  final isFriend = friendService.contacts.any(
-                    (c) => c['username'] == user.username,
-                  );
+                  final isFriend = friendService.isFriend(user.username);
                   final hasRequested = friendService.requests.contains(
                     user.username,
                   );

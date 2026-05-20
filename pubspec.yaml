@@ -59,6 +59,9 @@ dependencies:
   video_player: ^2.9.2
   emoji_picker_flutter: ^4.4.0
 
+  # Utilities
+  crypto: ^3.0.2
+
   # Face liveness
   camera: ^0.11.0+1
   google_mlkit_face_detection: ^0.13.0

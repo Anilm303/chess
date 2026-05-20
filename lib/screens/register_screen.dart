@@ -79,7 +79,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
     }
   }
 
-
   InputDecoration _inputDecoration({required String label, IconData? icon}) {
     return InputDecoration(
       labelText: label,
@@ -254,6 +253,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 child: FilledButton(
                   onPressed: () => _register(context),
                   child: const Text('Create Account'),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton(
+                  onPressed: () =>
+                      Navigator.of(context).pushNamed('/forgot-password'),
+                  child: const Text('Forgot password?'),
                 ),
               ),
             ],

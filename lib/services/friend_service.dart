@@ -14,6 +14,10 @@ class FriendService extends ChangeNotifier {
   bool get isLoading => _isLoading;
   String? get error => _error;
 
+  bool isFriend(String username) {
+    return _contacts.any((c) => c['username']?.toString() == username);
+  }
+
   void _setLoading(bool v) {
     _isLoading = v;
     notifyListeners();
@@ -95,6 +99,17 @@ class FriendService extends ChangeNotifier {
       if (resp.statusCode == 200) {
         _setLoading(false);
         return true;
+      }
+      if (resp.statusCode == 400) {
+        try {
+          final body = jsonDecode(resp.body) as Map<String, dynamic>;
+          final message = body['message']?.toString() ?? '';
+          if (message == 'Request already sent') {
+            _error = null;
+            _setLoading(false);
+            return true;
+          }
+        } catch (_) {}
       }
       _error = resp.body;
     } catch (e) {

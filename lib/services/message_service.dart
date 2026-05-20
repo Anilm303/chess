@@ -7,6 +7,8 @@ import 'package:image_picker/image_picker.dart';
 import '../models/message_model.dart';
 import 'api_service.dart';
 import 'friend_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:uuid/uuid.dart';
 
 class MessageService extends ChangeNotifier {
   final FriendService? _friendService;
@@ -30,6 +32,11 @@ class MessageService extends ChangeNotifier {
   String? _directTypingUser;
   final Set<String> _groupTypingUsers = {};
   io.Socket? _socket;
+  // Pending message queue (persisted)
+  final List<Map<String, dynamic>> _pendingMessages = [];
+  bool _processingPending = false;
+  static const String _prefsPendingKey = 'pending_messages_v1';
+  final _uuid = Uuid();
 
   // For polling real-time messages
   Timer? _pollTimer;
@@ -401,6 +408,8 @@ class MessageService extends ChangeNotifier {
           connected: true,
           status: 'Connected',
         );
+        // Load any persisted pending messages and attempt flush
+        _loadPendingMessages().then((_) => _processPendingQueue(accessToken));
         // Start heartbeat to server every 30 seconds
         try {
           _heartbeatTimer?.cancel();
@@ -592,6 +601,24 @@ class MessageService extends ChangeNotifier {
         _logHttp('Socket event friend_request: $data');
         try {
           if (_friendService != null && _socketToken != null) {
+            _friendService!.fetchRequests(_socketToken!);
+          }
+        } catch (_) {}
+      })
+      ..on('friend_request_responded', (data) {
+        _logHttp('Socket event friend_request_responded: $data');
+        try {
+          if (_friendService != null && _socketToken != null) {
+            _friendService!.fetchContacts(_socketToken!);
+            _friendService!.fetchRequests(_socketToken!);
+          }
+        } catch (_) {}
+      })
+      ..on('friend_added', (data) {
+        _logHttp('Socket event friend_added: $data');
+        try {
+          if (_friendService != null && _socketToken != null) {
+            _friendService!.fetchContacts(_socketToken!);
             _friendService!.fetchRequests(_socketToken!);
           }
         } catch (_) {}
@@ -1132,6 +1159,7 @@ class MessageService extends ChangeNotifier {
     String accessToken, {
     String messageType = 'text',
     String? mediaBase64,
+    String? mediaPath,
     String? replyToId,
     String? timestamp,
   }) async {
@@ -1141,54 +1169,176 @@ class MessageService extends ChangeNotifier {
       return false;
     }
 
-    try {
-      final sentAt = timestamp ?? DateTime.now().toIso8601String();
-      final url = '${ApiService.baseUrl}/messages/send';
-      _logHttp('POST $url messageType=$messageType receiver=$receiver');
-      final response = await http
-          .post(
-            Uri.parse(url),
-            headers: {
-              'Authorization': 'Bearer $accessToken',
-              'Content-Type': 'application/json',
-            },
-            body: jsonEncode({
-              'receiver': receiver,
-              'text': text.trim(),
-              'message_type': messageType,
-              'timestamp': sentAt,
-              if (mediaBase64 != null) 'media_base64': mediaBase64,
-              if (replyToId != null) 'reply_to_id': replyToId,
-            }),
-          )
-          .timeout(ApiService.timeout);
-      _logHttpResponse('POST /messages/send', response);
+    final allowed = await _canInteractWithUser(receiver, accessToken);
+    if (!allowed) {
+      _error = 'Message and call are available only after becoming friends';
+      notifyListeners();
+      return false;
+    }
 
-      if (response.statusCode == 201) {
-        final json = jsonDecode(response.body);
-        if (json['success'] == true) {
-          final message = Message.fromJson(json['data']);
-          _currentConversation.add(message);
-          _upsertConversationPreview(
-            username: receiver,
-            lastMessage: message.text,
-            lastMessageTime: message.timestamp.toIso8601String(),
-          );
-          _error = null;
-          notifyListeners();
-          return true;
+    // Enqueue message for reliable delivery (persisted). A background
+    // worker will attempt to POST to REST endpoint and remove on success.
+    final localId = 'local_${_uuid.v4()}';
+    final sentAt = timestamp ?? DateTime.now().toIso8601String();
+
+    final pending = {
+      'local_id': localId,
+      'receiver': receiver,
+      'text': text.trim(),
+      'message_type': messageType,
+      'media_base64': mediaBase64,
+      'media_path': mediaPath,
+      'reply_to_id': replyToId,
+      'timestamp': sentAt,
+      'retries': 0,
+      'created_at': DateTime.now().toIso8601String(),
+    };
+
+    // Add to local conversation immediately for optimistic UI
+    final optimistic = Message(
+      id: localId,
+      sender: _currentUserProfile?.username ?? 'me',
+      receiver: receiver,
+      text: text.trim(),
+      messageType: messageType,
+      mediaUrl: mediaPath,
+      timestamp: DateTime.parse(sentAt),
+      status: 'sending',
+      isRead: false, // Added required parameter
+    );
+    _currentConversation.add(optimistic);
+    _upsertConversationPreview(
+      username: receiver,
+      lastMessage: optimistic.text,
+      lastMessageTime: optimistic.timestamp.toIso8601String(),
+    );
+    notifyListeners();
+
+    _pendingMessages.add(pending);
+    await _savePendingMessages();
+    _processPendingQueue(accessToken);
+    return true;
+  }
+
+  Future<void> _loadPendingMessages() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString(_prefsPendingKey);
+      if (raw == null || raw.isEmpty) return;
+      final List decoded = jsonDecode(raw) as List;
+      _pendingMessages.clear();
+      for (final item in decoded) {
+        if (item is Map) {
+          _pendingMessages.add(Map<String, dynamic>.from(item));
         }
       }
-
-      _error = 'Failed to send message';
-      _logHttp(_error!);
-      notifyListeners();
-      return false;
     } catch (e) {
-      _error = 'Error sending message: $e';
-      _logHttp(_error!);
-      notifyListeners();
-      return false;
+      _logHttp('Failed loading pending messages: $e');
+    }
+  }
+
+  Future<void> _savePendingMessages() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_prefsPendingKey, jsonEncode(_pendingMessages));
+    } catch (e) {
+      _logHttp('Failed saving pending messages: $e');
+    }
+  }
+
+  Future<void> _processPendingQueue(String accessToken) async {
+    if (_processingPending) return;
+    if (_pendingMessages.isEmpty) return;
+    _processingPending = true;
+    try {
+      for (int i = 0; i < _pendingMessages.length;) {
+        final item = _pendingMessages[i];
+        try {
+          final url = '${ApiService.baseUrl}/messages/send';
+          _logHttp(
+            'Flushing pending -> POST $url receiver=${item['receiver']}',
+          );
+          final bodyMap = {
+            'receiver': item['receiver'],
+            'text': item['text'],
+            'message_type': item['message_type'],
+            'timestamp': item['timestamp'],
+            if (item['media_base64'] != null)
+              'media_base64': item['media_base64'],
+            if (item['media_path'] != null) 'media_path': item['media_path'],
+            if (item['reply_to_id'] != null) 'reply_to_id': item['reply_to_id'],
+          };
+
+          final response = await http
+              .post(
+                Uri.parse(url),
+                headers: {
+                  'Authorization': 'Bearer $accessToken',
+                  'Content-Type': 'application/json',
+                },
+                body: jsonEncode(bodyMap),
+              )
+              .timeout(ApiService.timeout);
+
+          _logHttpResponse('POST /messages/send (pending)', response);
+          if (response.statusCode == 201) {
+            final json = jsonDecode(response.body);
+            if (json['success'] == true) {
+              final serverMsg = Message.fromJson(json['data']);
+              // Replace optimistic message in conversation (match by local_id)
+              final localId = item['local_id']?.toString() ?? '';
+              final idx = _currentConversation.indexWhere(
+                (m) => m.id == localId,
+              );
+              if (idx != -1) {
+                _currentConversation[idx] = serverMsg;
+              } else {
+                _currentConversation.add(serverMsg);
+              }
+              _pendingMessages.removeAt(i);
+              await _savePendingMessages();
+              _upsertConversationPreview(
+                username: serverMsg.receiver,
+                lastMessage: serverMsg.text,
+                lastMessageTime: serverMsg.timestamp.toIso8601String(),
+              );
+              notifyListeners();
+              // continue with same index (next item shifted into i)
+              continue;
+            }
+          }
+
+          // Non-success path: increment retries and backoff
+          item['retries'] = (item['retries'] as int? ?? 0) + 1;
+          if ((item['retries'] as int) > 5) {
+            // Give up after 5 retries; mark message as failed locally
+            final localId = item['local_id']?.toString() ?? '';
+            final idx = _currentConversation.indexWhere((m) => m.id == localId);
+            if (idx != -1) {
+              _currentConversation[idx] = _currentConversation[idx].copyWith(
+                status: 'failed',
+              );
+            }
+            _pendingMessages.removeAt(i);
+            await _savePendingMessages();
+            notifyListeners();
+            continue;
+          }
+
+          // Wait exponential backoff then try next pending
+          final waitMs = 500 * (1 << ((item['retries'] as int) - 1));
+          await Future.delayed(Duration(milliseconds: waitMs));
+          i += 1;
+        } catch (e) {
+          _logHttp('Error flushing pending message: $e');
+          // network error — increment retries and break to retry later
+          item['retries'] = (item['retries'] as int? ?? 0) + 1;
+          await _savePendingMessages();
+          break;
+        }
+      }
+    } finally {
+      _processingPending = false;
     }
   }
 
@@ -1300,52 +1450,6 @@ class MessageService extends ChangeNotifier {
     }
   }
 
-  Future<bool> addGroupMember(
-    String groupId,
-    String memberUsername,
-    String accessToken,
-  ) async {
-    try {
-      final response = await http
-          .post(
-            Uri.parse('${ApiService.baseUrl}/messages/groups/$groupId/members'),
-            headers: {
-              'Authorization': 'Bearer $accessToken',
-              'Content-Type': 'application/json',
-            },
-            body: jsonEncode({'member_username': memberUsername}),
-          )
-          .timeout(ApiService.timeout);
-      if (response.statusCode == 200) {
-        await fetchGroups(accessToken);
-        return true;
-      }
-    } catch (_) {}
-    return false;
-  }
-
-  Future<bool> removeGroupMember(
-    String groupId,
-    String memberUsername,
-    String accessToken,
-  ) async {
-    try {
-      final response = await http
-          .delete(
-            Uri.parse(
-              '${ApiService.baseUrl}/messages/groups/$groupId/members/$memberUsername',
-            ),
-            headers: {'Authorization': 'Bearer $accessToken'},
-          )
-          .timeout(ApiService.timeout);
-      if (response.statusCode == 200) {
-        await fetchGroups(accessToken);
-        return true;
-      }
-    } catch (_) {}
-    return false;
-  }
-
   Future<bool> updateGroupAdmin(
     String groupId,
     String memberUsername,
@@ -1385,6 +1489,13 @@ class MessageService extends ChangeNotifier {
   }) async {
     _error = null;
     notifyListeners();
+
+    final allowed = await _canInteractWithUser(receiver, accessToken);
+    if (!allowed) {
+      _error = 'Message and call are available only after becoming friends';
+      notifyListeners();
+      return false;
+    }
 
     try {
       final sentAt = timestamp ?? DateTime.now().toIso8601String();
@@ -1466,6 +1577,19 @@ class MessageService extends ChangeNotifier {
       notifyListeners();
       return false;
     }
+  }
+
+  Future<bool> _canInteractWithUser(String username, String accessToken) async {
+    if (_friendService == null) {
+      return true;
+    }
+    if (_friendService!.isFriend(username)) {
+      return true;
+    }
+
+    // Refresh contacts once to avoid false negatives from stale state.
+    await _friendService!.fetchContacts(accessToken);
+    return _friendService!.isFriend(username);
   }
 
   /// Toggle an emoji reaction on a message via the API

@@ -9,6 +9,7 @@ import '../models/message_model.dart';
 import '../services/api_service.dart';
 import '../services/auth_service.dart';
 import '../services/call_service.dart';
+import '../services/friend_service.dart';
 import '../services/message_service.dart';
 import '../theme/colors.dart';
 import 'call_screen.dart';
@@ -473,6 +474,7 @@ class _ChatScreenState extends State<ChatScreen> {
   Future<void> _startCall(bool videoCall) async {
     final auth = context.read<AuthService>();
     final messageService = context.read<MessageService>();
+    final friendService = context.read<FriendService>();
     final callService = context.read<CallService>();
     final target = _callTarget(messageService);
     final token = auth.accessToken;
@@ -482,6 +484,22 @@ class _ChatScreenState extends State<ChatScreen> {
         context,
       ).showSnackBar(const SnackBar(content: Text('No call target available')));
       return;
+    }
+
+    if (!widget.isGroupChat) {
+      var isFriend = friendService.isFriend(target.username);
+      if (!isFriend) {
+        await friendService.fetchContacts(token);
+        isFriend = friendService.isFriend(target.username);
+      }
+      if (!isFriend) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Call is available only after becoming friends'),
+          ),
+        );
+        return;
+      }
     }
 
     await callService.startOutgoingCall(
@@ -499,6 +517,7 @@ class _ChatScreenState extends State<ChatScreen> {
   @override
   Widget build(BuildContext context) {
     final messageService = context.watch<MessageService>();
+    final friendService = context.watch<FriendService>();
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final pageBackground = isDark ? Colors.black : Colors.white;
@@ -515,6 +534,8 @@ class _ChatScreenState extends State<ChatScreen> {
     final messages = widget.isGroupChat
         ? messageService.currentGroupConversation
         : messageService.currentConversation;
+    final canDirectInteract =
+        widget.isGroupChat || friendService.isFriend(widget.chatUser.username);
     final title = _chatTitle(messageService);
     final subtitle =
         messageService.typingIndicatorText ?? _chatSubtitle(messageService);
@@ -566,12 +587,12 @@ class _ChatScreenState extends State<ChatScreen> {
         ),
         actions: [
           IconButton(
-            onPressed: () => _startCall(false),
+            onPressed: canDirectInteract ? () => _startCall(false) : null,
             icon: const Icon(Icons.call_outlined),
             tooltip: 'Voice call',
           ),
           IconButton(
-            onPressed: () => _startCall(true),
+            onPressed: canDirectInteract ? () => _startCall(true) : null,
             icon: const Icon(Icons.videocam_outlined),
             tooltip: 'Video call',
           ),
@@ -649,13 +670,13 @@ class _ChatScreenState extends State<ChatScreen> {
               child: Row(
                 children: [
                   IconButton(
-                    onPressed: _openAttachmentMenu,
+                    onPressed: canDirectInteract ? _openAttachmentMenu : null,
                     icon: const Icon(Icons.add_circle_outline),
                     color: accentIconColor,
                     tooltip: 'Attachments',
                   ),
                   IconButton(
-                    onPressed: _isUploading
+                    onPressed: !canDirectInteract || _isUploading
                         ? null
                         : () => _sendMedia(ImageSource.camera, 'image'),
                     icon: const Icon(Icons.camera_alt_outlined),
@@ -663,13 +684,17 @@ class _ChatScreenState extends State<ChatScreen> {
                     tooltip: 'Camera',
                   ),
                   IconButton(
-                    onPressed: _isUploading ? null : _pickFileTypeAndSend,
+                    onPressed: !canDirectInteract || _isUploading
+                        ? null
+                        : _pickFileTypeAndSend,
                     icon: const Icon(Icons.photo_library_outlined),
                     color: accentIconColor,
                     tooltip: 'Gallery',
                   ),
                   IconButton(
-                    onPressed: () => _sendQuickActionText('🎤 Voice message'),
+                    onPressed: canDirectInteract
+                        ? () => _sendQuickActionText('🎤 Voice message')
+                        : null,
                     icon: const Icon(Icons.mic_none_outlined),
                     color: accentIconColor,
                     tooltip: 'Voice note',
@@ -677,6 +702,7 @@ class _ChatScreenState extends State<ChatScreen> {
                   Expanded(
                     child: TextField(
                       controller: _messageController,
+                      enabled: canDirectInteract,
                       onChanged: (value) {
                         setState(() {});
                         _handleTypingChanged(value);
@@ -687,7 +713,9 @@ class _ChatScreenState extends State<ChatScreen> {
                       decoration: InputDecoration(
                         hintText: _isUploading
                             ? 'Sending...'
-                            : 'Type a message',
+                            : (canDirectInteract
+                                  ? 'Type a message'
+                                  : 'Become friends to chat'),
                         hintStyle: TextStyle(
                           color: isDark
                               ? Colors.white.withOpacity(0.65)
@@ -716,7 +744,7 @@ class _ChatScreenState extends State<ChatScreen> {
                           : Icons.send,
                     ),
                     color: accentIconColor,
-                    onPressed: _isUploading
+                    onPressed: _isUploading || !canDirectInteract
                         ? null
                         : () {
                             if (_messageController.text.trim().isEmpty) {

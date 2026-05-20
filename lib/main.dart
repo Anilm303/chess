@@ -24,6 +24,8 @@ import 'screens/register_screen.dart';
 import 'screens/call_screen.dart';
 import 'screens/chess_board_screen.dart';
 import 'screens/notifications_screen.dart';
+import 'screens/forgot_password_screen.dart';
+import 'screens/reset_password_screen.dart';
 import 'navigation/app_navigator.dart';
 import 'widgets/incoming_call_toast_host.dart';
 
@@ -138,6 +140,8 @@ class ChessApp extends StatelessWidget {
             routes: {
               '/login': (context) => const LoginScreen(),
               '/register': (context) => const RegisterScreen(),
+              '/forgot-password': (context) => const ForgotPasswordScreen(),
+              '/reset-password': (context) => const ResetPasswordScreen(),
               '/chess': (context) => const ChessBoardScreen(),
               '/notifications': (context) => const NotificationsScreen(),
               '/ludo': (context) => const LudoHomeScreen(),

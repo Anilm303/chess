@@ -247,4 +247,54 @@ class AuthService extends ChangeNotifier {
     _error = null;
     notifyListeners();
   }
+
+  // Request password reset (sends email or returns token in dev mode)
+  Future<Map<String, dynamic>> forgotPassword({required String email}) async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      final resp = await ApiService.forgotPassword(email: email);
+      _isLoading = false;
+      notifyListeners();
+      return resp;
+    } catch (e) {
+      _isLoading = false;
+      _error = 'Forgot password request failed: $e';
+      notifyListeners();
+      return {
+        'statusCode': 500,
+        'body': {'message': _error},
+      };
+    }
+  }
+
+  // Reset password using token
+  Future<Map<String, dynamic>> resetPassword({
+    required String token,
+    required String newPassword,
+  }) async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      final resp = await ApiService.resetPassword(
+        token: token,
+        newPassword: newPassword,
+      );
+      _isLoading = false;
+      notifyListeners();
+      return resp;
+    } catch (e) {
+      _isLoading = false;
+      _error = 'Reset password failed: $e';
+      notifyListeners();
+      return {
+        'statusCode': 500,
+        'body': {'message': _error},
+      };
+    }
+  }
 }

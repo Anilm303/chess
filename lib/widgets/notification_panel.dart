@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../models/notification_model.dart' as notif_model;
+import '../services/auth_service.dart';
+import '../services/friend_service.dart';
 import '../services/notification_service.dart';
 
 class NotificationPanel extends StatelessWidget {
@@ -33,6 +35,8 @@ class NotificationPanel extends StatelessWidget {
         child: Consumer<NotificationService>(
           builder: (context, notificationService, _) {
             final notifications = notificationService.notifications;
+            final authService = context.read<AuthService>();
+            final friendService = context.read<FriendService>();
             return Column(
               children: [
                 Padding(
@@ -76,7 +80,7 @@ class NotificationPanel extends StatelessWidget {
                       : ListView.separated(
                           padding: const EdgeInsets.all(12),
                           itemCount: notifications.length,
-                          separatorBuilder: (_, __) =>
+                          separatorBuilder: (context, _) =>
                               const SizedBox(height: 8),
                           itemBuilder: (context, index) {
                             final notification = notifications[index];
@@ -87,6 +91,74 @@ class NotificationPanel extends StatelessWidget {
                               ),
                               onRemove: () => notificationService
                                   .removeNotification(notification.id),
+                              onAcceptFriendRequest:
+                                  notification.type == 'friend_request'
+                                  ? () async {
+                                      final token = authService.accessToken;
+                                      if (token == null) return;
+                                      final ok = await friendService
+                                          .respondRequest(
+                                            token,
+                                            notification.username,
+                                            true,
+                                          );
+                                      if (ok) {
+                                        await notificationService.markAsRead(
+                                          notification.id,
+                                        );
+                                        notificationService.removeNotification(
+                                          notification.id,
+                                        );
+                                      }
+                                      if (context.mounted) {
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
+                                          SnackBar(
+                                            content: Text(
+                                              ok
+                                                  ? 'Friend request accepted'
+                                                  : 'Failed: ${friendService.error}',
+                                            ),
+                                          ),
+                                        );
+                                      }
+                                    }
+                                  : null,
+                              onDeclineFriendRequest:
+                                  notification.type == 'friend_request'
+                                  ? () async {
+                                      final token = authService.accessToken;
+                                      if (token == null) return;
+                                      final ok = await friendService
+                                          .respondRequest(
+                                            token,
+                                            notification.username,
+                                            false,
+                                          );
+                                      if (ok) {
+                                        await notificationService.markAsRead(
+                                          notification.id,
+                                        );
+                                        notificationService.removeNotification(
+                                          notification.id,
+                                        );
+                                      }
+                                      if (context.mounted) {
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
+                                          SnackBar(
+                                            content: Text(
+                                              ok
+                                                  ? 'Friend request declined'
+                                                  : 'Failed: ${friendService.error}',
+                                            ),
+                                          ),
+                                        );
+                                      }
+                                    }
+                                  : null,
                             );
                           },
                         ),
@@ -115,11 +187,15 @@ class _NotificationTile extends StatelessWidget {
   final notif_model.Notification notification;
   final VoidCallback onTap;
   final VoidCallback onRemove;
+  final VoidCallback? onAcceptFriendRequest;
+  final VoidCallback? onDeclineFriendRequest;
 
   const _NotificationTile({
     required this.notification,
     required this.onTap,
     required this.onRemove,
+    this.onAcceptFriendRequest,
+    this.onDeclineFriendRequest,
   });
 
   @override
@@ -170,6 +246,28 @@ class _NotificationTile extends StatelessWidget {
                         fontSize: 13,
                       ),
                     ),
+                    if (notification.type == 'friend_request' &&
+                        (onAcceptFriendRequest != null ||
+                            onDeclineFriendRequest != null)) ...[
+                      const SizedBox(height: 10),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton(
+                              onPressed: onDeclineFriendRequest,
+                              child: const Text('Decline'),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: ElevatedButton(
+                              onPressed: onAcceptFriendRequest,
+                              child: const Text('Accept'),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                     const SizedBox(height: 6),
                     Text(
                       _formatTime(notification.timestamp),
