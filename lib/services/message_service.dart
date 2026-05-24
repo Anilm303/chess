@@ -118,6 +118,21 @@ class MessageService extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> _refreshFriendState({bool includeRequests = true}) async {
+    if (_friendService == null ||
+        _socketToken == null ||
+        _socketToken!.isEmpty) {
+      return;
+    }
+
+    try {
+      await _friendService!.fetchContacts(_socketToken!);
+      if (includeRequests) {
+        await _friendService!.fetchRequests(_socketToken!);
+      }
+    } catch (_) {}
+  }
+
   void _updatePresence(
     String username, {
     required bool isOnline,
@@ -408,6 +423,7 @@ class MessageService extends ChangeNotifier {
           connected: true,
           status: 'Connected',
         );
+        _refreshFriendState();
         // Load any persisted pending messages and attempt flush
         _loadPendingMessages().then((_) => _processPendingQueue(accessToken));
         // Start heartbeat to server every 30 seconds
@@ -600,27 +616,25 @@ class MessageService extends ChangeNotifier {
       ..on('friend_request', (data) {
         _logHttp('Socket event friend_request: $data');
         try {
-          if (_friendService != null && _socketToken != null) {
-            _friendService!.fetchRequests(_socketToken!);
-          }
+          _refreshFriendState(includeRequests: true);
         } catch (_) {}
       })
       ..on('friend_request_responded', (data) {
         _logHttp('Socket event friend_request_responded: $data');
         try {
-          if (_friendService != null && _socketToken != null) {
-            _friendService!.fetchContacts(_socketToken!);
-            _friendService!.fetchRequests(_socketToken!);
-          }
+          _refreshFriendState(includeRequests: true);
         } catch (_) {}
       })
       ..on('friend_added', (data) {
         _logHttp('Socket event friend_added: $data');
         try {
-          if (_friendService != null && _socketToken != null) {
-            _friendService!.fetchContacts(_socketToken!);
-            _friendService!.fetchRequests(_socketToken!);
-          }
+          _refreshFriendState(includeRequests: true);
+        } catch (_) {}
+      })
+      ..on('friend_list_update', (data) {
+        _logHttp('Socket event friend_list_update: $data');
+        try {
+          _refreshFriendState(includeRequests: true);
         } catch (_) {}
       })
       ..on('group_user_typing', (data) {

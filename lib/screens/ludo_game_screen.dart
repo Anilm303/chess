@@ -10,11 +10,13 @@ import '../widgets/ludo_painters.dart';
 class LudoGameScreen extends StatefulWidget {
   final List<Player> players;
   final GameMode gameMode;
+  final LudoRuleSettings ruleSettings;
 
   const LudoGameScreen({
     Key? key,
     required this.players,
     required this.gameMode,
+    this.ruleSettings = const LudoRuleSettings(),
   }) : super(key: key);
 
   @override
@@ -64,6 +66,7 @@ class _LudoGameScreenState extends State<LudoGameScreen>
       gameProvider.initializeOfflineGame(
         players: widget.players,
         gameMode: widget.gameMode,
+        rules: widget.ruleSettings,
       );
       gameProvider.startGame();
       // listen for lastMove events to trigger kill animation
@@ -365,6 +368,8 @@ class _LudoGameScreenState extends State<LudoGameScreen>
                         gameState: gameProvider.gameState!,
                         boardSize: 400,
                         lastMove: gameProvider.lastMoveEvent,
+                        showSafeCells:
+                            gameProvider.gameState?.rules.showSafeCells ?? true,
                       ),
                       size: const Size(400, 450),
                     ),
@@ -625,7 +630,9 @@ class _LudoGameScreenState extends State<LudoGameScreen>
             ),
             child: ElevatedButton(
               onPressed:
-                  (!gameProvider.diceRolled && !gameProvider.awaitingServer)
+                  (gameProvider.currentPlayer?.type == PlayerType.human &&
+                      !gameProvider.diceRolled &&
+                      !gameProvider.awaitingServer)
                   ? () {
                       _onDiceRoll(gameProvider);
                     }
@@ -677,17 +684,12 @@ class _LudoGameScreenState extends State<LudoGameScreen>
     context.read<SoundService>().playSound(GameSound.diceRoll);
 
     // Roll dice
-    final diceValue = gameProvider.rollDice();
-
-    // Handle AI turn if needed
-    if (gameProvider.currentPlayer?.type == PlayerType.ai) {
-      Future.delayed(const Duration(milliseconds: 1500), () {
-        gameProvider.autoPlayAITurn();
-      });
-    }
+    gameProvider.rollDice();
   }
 
   Widget _buildTokensPanel(GameProvider gameProvider) {
+    final currentPlayer = gameProvider.currentPlayer;
+    final isHumanTurn = currentPlayer?.type == PlayerType.human;
     final movableTokens = gameProvider.getMovableTokens();
 
     return Container(
@@ -708,19 +710,27 @@ class _LudoGameScreenState extends State<LudoGameScreen>
             ),
           ),
           const SizedBox(height: 12),
-          movableTokens.isEmpty
-              ? const Text('No movable tokens')
-              : SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
-                    children: movableTokens.map((token) {
-                      return Padding(
-                        padding: const EdgeInsets.only(right: 12),
-                        child: _buildTokenCard(token, gameProvider),
-                      );
-                    }).toList(),
-                  ),
-                ),
+          if (!isHumanTurn)
+            const Text(
+              'Computer is playing...',
+              style: TextStyle(fontWeight: FontWeight.w600),
+            )
+          else if (!gameProvider.diceRolled)
+            const Text('Roll the dice to see movable tokens')
+          else if (movableTokens.isEmpty)
+            const Text('No movable tokens')
+          else
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: movableTokens.map((token) {
+                  return Padding(
+                    padding: const EdgeInsets.only(right: 12),
+                    child: _buildTokenCard(token, gameProvider),
+                  );
+                }).toList(),
+              ),
+            ),
         ],
       ),
     );
@@ -728,9 +738,13 @@ class _LudoGameScreenState extends State<LudoGameScreen>
 
   Widget _buildTokenCard(Token token, GameProvider gameProvider) {
     final color = _getPlayerColorValue(token.playerColor);
+    final canTap =
+        gameProvider.currentPlayer?.type == PlayerType.human &&
+        gameProvider.diceRolled &&
+        !gameProvider.awaitingServer;
 
     return GestureDetector(
-      onTap: gameProvider.awaitingServer
+      onTap: !canTap
           ? null
           : () {
               gameProvider.moveToken(token);

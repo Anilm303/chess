@@ -14,6 +14,12 @@ class LudoGameLogic {
   static int get mainBoardSize => BoardConfig.totalPositions; // 52
   static int get homePathSize => BoardConfig.homePositions; // 6
 
+  static bool canOpenTokenOnDice(int diceValue, LudoRuleSettings rules) {
+    if (diceValue == 1) return rules.openTokenOnOne;
+    if (diceValue == 6) return rules.openTokenOnSix;
+    return false;
+  }
+
   static int getPlayerStartPosition(PlayerColor color) {
     return BoardConfig.playerStartPositions[color] ?? 0;
   }
@@ -47,14 +53,18 @@ class LudoGameLogic {
   }
 
   /// Check if token can be moved by given dice
-  static bool canTokenBeMoved(Token token, int diceValue) {
+  static bool canTokenBeMoved(
+    Token token,
+    int diceValue, {
+    LudoRuleSettings rules = const LudoRuleSettings(),
+  }) {
     // If token was killed (sent back to home), allow it to be moved out
-    // when the player rolls a 6 so it can spawn back onto the board.
-    if (token.isKilled) return diceValue == 6;
+    // when the player rolls an opening value so it can spawn back onto the board.
+    if (token.isKilled) return canOpenTokenOnDice(diceValue, rules);
 
     // token not opened
     if (token.position == -1) {
-      return diceValue == 6;
+      return canOpenTokenOnDice(diceValue, rules);
     }
 
     // token in home path: allow move only if it doesn't overshoot final cell
@@ -72,11 +82,14 @@ class LudoGameLogic {
   static int calculateNewPosition(
     Token token,
     int diceValue,
-    PlayerColor playerColor,
-  ) {
+    PlayerColor playerColor, {
+    LudoRuleSettings rules = const LudoRuleSettings(),
+  }) {
     // opening token
     if (token.position == -1) {
-      if (diceValue == 6) return getPlayerStartPosition(playerColor);
+      if (canOpenTokenOnDice(diceValue, rules)) {
+        return getPlayerStartPosition(playerColor);
+      }
       return -1;
     }
 
@@ -107,8 +120,79 @@ class LudoGameLogic {
     return (token.position + diceValue) % mainBoardSize;
   }
 
-  static List<Token> getMovableTokens(Player player, int diceValue) {
-    return player.tokens.where((t) => canTokenBeMoved(t, diceValue)).toList();
+  static bool canCaptureOnPosition(
+    List<Player> players,
+    int position,
+    PlayerColor excludeColor, {
+    LudoRuleSettings rules = const LudoRuleSettings(),
+  }) {
+    final tokens = getTokensAtPosition(players, position, excludeColor);
+    if (tokens.isEmpty) return false;
+
+    if (!rules.barrierEnabled) return true;
+
+    final grouped = <PlayerColor, int>{};
+    for (final player in players) {
+      if (player.color == excludeColor) continue;
+      final matching = player.tokens.where((token) {
+        return !token.isKilled && token.position == position;
+      }).length;
+      if (matching > 0) {
+        grouped[player.color] = matching;
+      }
+    }
+
+    for (final count in grouped.values) {
+      if (count >= 2) return false;
+    }
+
+    return true;
+  }
+
+  static bool canTokenCapture(
+    Token token,
+    int diceValue,
+    List<Player> players, {
+    LudoRuleSettings rules = const LudoRuleSettings(),
+  }) {
+    final newPos = calculateNewPosition(
+      token,
+      diceValue,
+      token.playerColor,
+      rules: rules,
+    );
+    if (newPos < 0 || newPos >= mainBoardSize) return false;
+    if (isSafePosition(newPos, token.playerColor)) return false;
+    return canCaptureOnPosition(
+      players,
+      newPos,
+      token.playerColor,
+      rules: rules,
+    );
+  }
+
+  static List<Token> getMovableTokens(
+    Player player,
+    int diceValue, {
+    List<Player>? allPlayers,
+    LudoRuleSettings rules = const LudoRuleSettings(),
+  }) {
+    final candidates = player.tokens
+        .where((t) => canTokenBeMoved(t, diceValue, rules: rules))
+        .toList();
+
+    if (!rules.mustCutIfCuttable || allPlayers == null) {
+      return candidates;
+    }
+
+    final capturingTokens = candidates
+        .where(
+          (token) =>
+              canTokenCapture(token, diceValue, allPlayers, rules: rules),
+        )
+        .toList();
+
+    return capturingTokens.isNotEmpty ? capturingTokens : candidates;
   }
 
   static List<Token> getTokensAtPosition(
@@ -153,13 +237,27 @@ class LudoGameLogic {
     }
   }
 
-  static void executeMove(GameState gameState, Token token, int diceValue) {
+  static MoveOutcome executeMove(
+    GameState gameState,
+    Token token,
+    int diceValue,
+  ) {
     final player = gameState.currentPlayer;
+    final rules = gameState.rules;
     final oldPos = token.position;
-    final newPos = calculateNewPosition(token, diceValue, player.color);
+    final newPos = calculateNewPosition(
+      token,
+      diceValue,
+      player.color,
+      rules: rules,
+    );
+    final outcome = MoveOutcome(
+      moved: newPos != token.position,
+      openedToken: oldPos < 0 && newPos >= 0,
+    );
 
     // no-op if cannot move
-    if (newPos == token.position) return;
+    if (newPos == token.position) return outcome;
 
     token.position = newPos;
     token.isKilled = false; // revived by moving
@@ -170,6 +268,7 @@ class LudoGameLogic {
     if (token.isInHome && token.position == finalIndex) {
       // increment finished counter for player
       player.tokensReachedHome++;
+      outcome.reachedHome = true;
     }
 
     // handle kills: only on main board and only if landed on non-safe cell
@@ -179,13 +278,27 @@ class LudoGameLogic {
         newPos,
         player.color,
       );
-      if (victims.isNotEmpty) {
+      if (victims.isNotEmpty &&
+          canCaptureOnPosition(
+            gameState.players,
+            newPos,
+            player.color,
+            rules: rules,
+          )) {
         killTokensAtPosition(gameState.players, newPos, player.color);
+        outcome.captured = true;
       }
     }
+
+    // If the rule set does not use safe cells, retain the board state logic.
+    if (!rules.showSafeCells) {
+      // no-op for engine; painter will hide stars
+    }
+
+    return outcome;
   }
 
-  static bool checkWin(Player player) => player.tokensReachedHome == 4;
+  static bool checkWin(Player player) => player.hasWon;
 
   static bool isDiceSix(int diceValue) => diceValue == 6;
 
@@ -237,12 +350,14 @@ class GameController {
   void initializeGame({
     required List<Player> players,
     required GameMode gameMode,
+    LudoRuleSettings rules = const LudoRuleSettings(),
   }) {
     gameState = GameState(
       id: const Uuid().v4(),
       players: players,
       createdAt: DateTime.now(),
       gameMode: gameMode,
+      rules: rules,
       currentPlayerIndex: 0,
     );
   }
@@ -250,6 +365,13 @@ class GameController {
   void startGame() {
     gameState.status = GameStatus.playing;
     gameState.startedAt = DateTime.now();
+    for (final player in gameState.players) {
+      player.isCurrentTurn = false;
+    }
+    if (gameState.players.isNotEmpty) {
+      gameState.players[gameState.currentPlayerIndex].isCurrentTurn = true;
+      onTurnChanged?.call(gameState.currentPlayer);
+    }
     onGameStateChanged?.call();
   }
 
@@ -265,6 +387,8 @@ class GameController {
     final movableTokens = LudoGameLogic.getMovableTokens(
       gameState.currentPlayer,
       gameState.diceValue,
+      allPlayers: gameState.players,
+      rules: gameState.rules,
     );
 
     gameState.canMove = movableTokens.isNotEmpty;
@@ -279,14 +403,26 @@ class GameController {
       return false;
     }
 
-    if (!LudoGameLogic.canTokenBeMoved(token, diceValue)) {
+    if (!LudoGameLogic.canTokenBeMoved(
+      token,
+      diceValue,
+      rules: gameState.rules,
+    )) {
       return false;
     }
 
     // Execute move
-    LudoGameLogic.executeMove(gameState, token, diceValue);
+    final outcome = LudoGameLogic.executeMove(gameState, token, diceValue);
 
     onTokenMoved?.call(token);
+
+    final rules = gameState.rules;
+
+    if (diceValue == 1) {
+      gameState.currentPlayer.consecutiveOnes++;
+    } else {
+      gameState.currentPlayer.consecutiveOnes = 0;
+    }
 
     // Check for win
     if (LudoGameLogic.checkWin(gameState.currentPlayer)) {
@@ -297,18 +433,50 @@ class GameController {
       return true;
     }
 
-    // Handle turns
-    if (!LudoGameLogic.isDiceSix(diceValue)) {
-      endTurn();
-    } else {
-      // Extra turn on 6
+    bool keepTurn = false;
+
+    if (outcome.captured && rules.extraTurnOnCapture) {
+      keepTurn = true;
+    }
+
+    if (outcome.reachedHome && rules.extraTurnOnHome) {
+      keepTurn = true;
+    }
+
+    bool forceEndTurn = false;
+
+    if (LudoGameLogic.isDiceSix(diceValue)) {
       gameState.currentPlayer.consecutiveSixes++;
 
-      // Cancel turn after 3 consecutive 6s
       if (gameState.currentPlayer.consecutiveSixes >= 3) {
+        if (rules.threeConsecutiveSixesBringCoinOut) {
+          _bringCoinOutForPlayer(gameState.currentPlayer, diceValue);
+        }
         gameState.currentPlayer.consecutiveSixes = 0;
-        endTurn();
+        forceEndTurn = true;
+      } else if (rules.extraTurnOnSix) {
+        keepTurn = true;
       }
+    } else {
+      gameState.currentPlayer.consecutiveSixes = 0;
+    }
+
+    if (diceValue == 1 && gameState.currentPlayer.consecutiveOnes >= 3) {
+      if (rules.threeConsecutiveOnesCutOwnCoin) {
+        _cutOwnCoin(gameState.currentPlayer);
+      }
+      if (rules.skipTurnAfterThreeOnes) {
+        gameState.currentPlayer.skipTurns += 1;
+      }
+      gameState.currentPlayer.consecutiveOnes = 0;
+      forceEndTurn = true;
+    }
+
+    if (forceEndTurn) {
+      keepTurn = false;
+      endTurn();
+    } else if (!keepTurn) {
+      endTurn();
     }
 
     gameState.diceRolled = false;
@@ -332,7 +500,12 @@ class GameController {
       final candidate = gameState.players[nextIndex];
 
       // skip players who already finished
-      if (candidate.tokensReachedHome >= 4) continue;
+      if (candidate.hasWon) continue;
+
+      if (candidate.skipTurns > 0) {
+        candidate.skipTurns -= 1;
+        continue;
+      }
 
       // found next player
       gameState.currentPlayerIndex = nextIndex;
@@ -344,11 +517,18 @@ class GameController {
       // no eligible players left -> finish game
       gameState.status = GameStatus.finished;
       gameState.endedAt = DateTime.now();
+      for (final player in gameState.players) {
+        player.isCurrentTurn = false;
+      }
       onGameEnded?.call(gameState.winner);
       onGameStateChanged?.call();
       return;
     }
 
+    for (final player in gameState.players) {
+      player.isCurrentTurn = false;
+    }
+    gameState.players[gameState.currentPlayerIndex].isCurrentTurn = true;
     gameState.diceValue = 0;
     gameState.diceRolled = false;
     gameState.canMove = false;
@@ -378,6 +558,8 @@ class GameController {
     for (final player in gameState.players) {
       player.isCurrentTurn = false;
       player.consecutiveSixes = 0;
+      player.consecutiveOnes = 0;
+      player.skipTurns = 0;
       player.tokensReachedHome = 0;
 
       for (final token in player.tokens) {
@@ -389,4 +571,47 @@ class GameController {
 
     onGameStateChanged?.call();
   }
+
+  void _bringCoinOutForPlayer(Player player, int diceValue) {
+    final token = player.tokens.firstWhere(
+      (t) => t.position < 0,
+      orElse: () => player.tokens.first,
+    );
+    if (token.position < 0) {
+      token.position = LudoGameLogic.getPlayerStartPosition(player.color);
+      token.isKilled = false;
+      token.isInHome = false;
+    }
+  }
+
+  void _cutOwnCoin(Player player) {
+    final token =
+        player.tokens
+            .where(
+              (t) =>
+                  t.position >= 0 && t.position < LudoGameLogic.mainBoardSize,
+            )
+            .toList()
+          ..sort((a, b) => b.position.compareTo(a.position));
+
+    if (token.isNotEmpty) {
+      token.first.position = -1;
+      token.first.isKilled = false;
+      token.first.isInHome = false;
+    }
+  }
+}
+
+class MoveOutcome {
+  bool moved;
+  bool openedToken;
+  bool captured;
+  bool reachedHome;
+
+  MoveOutcome({
+    this.moved = false,
+    this.openedToken = false,
+    this.captured = false,
+    this.reachedHome = false,
+  });
 }

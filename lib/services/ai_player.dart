@@ -1,4 +1,3 @@
-
 // Ludo AI Player Logic
 import 'dart:math';
 import '../models/ludo_models.dart';
@@ -11,8 +10,18 @@ class AIPlayer {
   AIPlayer({this.difficulty = DifficultyLevel.medium});
 
   /// Get best move for AI player
-  Token? getBestMove(Player aiPlayer, int diceValue, List<Player> allPlayers) {
-    final movableTokens = LudoGameLogic.getMovableTokens(aiPlayer, diceValue);
+  Token? getBestMove(
+    Player aiPlayer,
+    int diceValue,
+    List<Player> allPlayers, {
+    LudoRuleSettings rules = const LudoRuleSettings(),
+  }) {
+    final movableTokens = LudoGameLogic.getMovableTokens(
+      aiPlayer,
+      diceValue,
+      allPlayers: allPlayers,
+      rules: rules,
+    );
 
     if (movableTokens.isEmpty) {
       return null;
@@ -20,11 +29,29 @@ class AIPlayer {
 
     switch (difficulty) {
       case DifficultyLevel.easy:
-        return _getEasyMove(aiPlayer, movableTokens, diceValue, allPlayers);
+        return _getEasyMove(
+          aiPlayer,
+          movableTokens,
+          diceValue,
+          allPlayers,
+          rules,
+        );
       case DifficultyLevel.medium:
-        return _getMediumMove(aiPlayer, movableTokens, diceValue, allPlayers);
+        return _getMediumMove(
+          aiPlayer,
+          movableTokens,
+          diceValue,
+          allPlayers,
+          rules,
+        );
       case DifficultyLevel.hard:
-        return _getHardMove(aiPlayer, movableTokens, diceValue, allPlayers);
+        return _getHardMove(
+          aiPlayer,
+          movableTokens,
+          diceValue,
+          allPlayers,
+          rules,
+        );
     }
   }
 
@@ -34,6 +61,7 @@ class AIPlayer {
     List<Token> movableTokens,
     int diceValue,
     List<Player> allPlayers,
+    LudoRuleSettings rules,
   ) {
     if (movableTokens.isEmpty) return null;
     return movableTokens[_random.nextInt(movableTokens.length)];
@@ -45,6 +73,7 @@ class AIPlayer {
     List<Token> movableTokens,
     int diceValue,
     List<Player> allPlayers,
+    LudoRuleSettings rules,
   ) {
     final Map<Token, int> scoredMoves = {};
 
@@ -56,6 +85,7 @@ class AIPlayer {
         token,
         diceValue,
         aiPlayer.color,
+        rules: rules,
       );
 
       final tokensToKill = LudoGameLogic.getTokensAtPosition(
@@ -105,6 +135,7 @@ class AIPlayer {
     List<Token> movableTokens,
     int diceValue,
     List<Player> allPlayers,
+    LudoRuleSettings rules,
   ) {
     final Map<Token, double> scoredMoves = {};
 
@@ -115,6 +146,7 @@ class AIPlayer {
         token,
         diceValue,
         aiPlayer.color,
+        rules: rules,
       );
 
       // Priority 1: Kill opponent token (highest weight)
@@ -222,11 +254,15 @@ class AIPlayer {
   }
 
   /// Predict best dice outcome (for decision making)
-  List<Token> predictBestOutcome(Player aiPlayer, List<Player> allPlayers) {
+  List<Token> predictBestOutcome(
+    Player aiPlayer,
+    List<Player> allPlayers, {
+    LudoRuleSettings rules = const LudoRuleSettings(),
+  }) {
     final predictions = <Token>[];
 
     for (int dice = 1; dice <= 6; dice++) {
-      final move = getBestMove(aiPlayer, dice, allPlayers);
+      final move = getBestMove(aiPlayer, dice, allPlayers, rules: rules);
       if (move != null) {
         predictions.add(move);
       }

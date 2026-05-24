@@ -11,6 +11,102 @@ enum DifficultyLevel { easy, medium, hard }
 
 enum GameStatus { waiting, playing, paused, finished }
 
+/// Toggleable rule set for different Ludo variants.
+class LudoRuleSettings {
+  final bool showSafeCells;
+  final bool openTokenOnOne;
+  final bool openTokenOnSix;
+  final bool extraTurnOnSix;
+  final bool extraTurnOnCapture;
+  final bool extraTurnOnHome;
+  final bool mustCutIfCuttable;
+  final bool barrierEnabled;
+  final bool threeConsecutiveSixesBringCoinOut;
+  final bool threeConsecutiveOnesCutOwnCoin;
+  final bool skipTurnAfterThreeOnes;
+
+  const LudoRuleSettings({
+    this.showSafeCells = true,
+    this.openTokenOnOne = false,
+    this.openTokenOnSix = true,
+    this.extraTurnOnSix = true,
+    this.extraTurnOnCapture = true,
+    this.extraTurnOnHome = true,
+    this.mustCutIfCuttable = true,
+    this.barrierEnabled = true,
+    this.threeConsecutiveSixesBringCoinOut = false,
+    this.threeConsecutiveOnesCutOwnCoin = false,
+    this.skipTurnAfterThreeOnes = false,
+  });
+
+  LudoRuleSettings copyWith({
+    bool? showSafeCells,
+    bool? openTokenOnOne,
+    bool? openTokenOnSix,
+    bool? extraTurnOnSix,
+    bool? extraTurnOnCapture,
+    bool? extraTurnOnHome,
+    bool? mustCutIfCuttable,
+    bool? barrierEnabled,
+    bool? threeConsecutiveSixesBringCoinOut,
+    bool? threeConsecutiveOnesCutOwnCoin,
+    bool? skipTurnAfterThreeOnes,
+  }) {
+    return LudoRuleSettings(
+      showSafeCells: showSafeCells ?? this.showSafeCells,
+      openTokenOnOne: openTokenOnOne ?? this.openTokenOnOne,
+      openTokenOnSix: openTokenOnSix ?? this.openTokenOnSix,
+      extraTurnOnSix: extraTurnOnSix ?? this.extraTurnOnSix,
+      extraTurnOnCapture: extraTurnOnCapture ?? this.extraTurnOnCapture,
+      extraTurnOnHome: extraTurnOnHome ?? this.extraTurnOnHome,
+      mustCutIfCuttable: mustCutIfCuttable ?? this.mustCutIfCuttable,
+      barrierEnabled: barrierEnabled ?? this.barrierEnabled,
+      threeConsecutiveSixesBringCoinOut:
+          threeConsecutiveSixesBringCoinOut ??
+          this.threeConsecutiveSixesBringCoinOut,
+      threeConsecutiveOnesCutOwnCoin:
+          threeConsecutiveOnesCutOwnCoin ?? this.threeConsecutiveOnesCutOwnCoin,
+      skipTurnAfterThreeOnes:
+          skipTurnAfterThreeOnes ?? this.skipTurnAfterThreeOnes,
+    );
+  }
+
+  factory LudoRuleSettings.fromJson(Map<String, dynamic>? json) {
+    if (json == null) return const LudoRuleSettings();
+    return LudoRuleSettings(
+      showSafeCells: json['showSafeCells'] as bool? ?? true,
+      openTokenOnOne: json['openTokenOnOne'] as bool? ?? false,
+      openTokenOnSix: json['openTokenOnSix'] as bool? ?? true,
+      extraTurnOnSix: json['extraTurnOnSix'] as bool? ?? true,
+      extraTurnOnCapture: json['extraTurnOnCapture'] as bool? ?? true,
+      extraTurnOnHome: json['extraTurnOnHome'] as bool? ?? true,
+      mustCutIfCuttable: json['mustCutIfCuttable'] as bool? ?? true,
+      barrierEnabled: json['barrierEnabled'] as bool? ?? true,
+      threeConsecutiveSixesBringCoinOut:
+          json['threeConsecutiveSixesBringCoinOut'] as bool? ?? false,
+      threeConsecutiveOnesCutOwnCoin:
+          json['threeConsecutiveOnesCutOwnCoin'] as bool? ?? false,
+      skipTurnAfterThreeOnes: json['skipTurnAfterThreeOnes'] as bool? ?? false,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'showSafeCells': showSafeCells,
+      'openTokenOnOne': openTokenOnOne,
+      'openTokenOnSix': openTokenOnSix,
+      'extraTurnOnSix': extraTurnOnSix,
+      'extraTurnOnCapture': extraTurnOnCapture,
+      'extraTurnOnHome': extraTurnOnHome,
+      'mustCutIfCuttable': mustCutIfCuttable,
+      'barrierEnabled': barrierEnabled,
+      'threeConsecutiveSixesBringCoinOut': threeConsecutiveSixesBringCoinOut,
+      'threeConsecutiveOnesCutOwnCoin': threeConsecutiveOnesCutOwnCoin,
+      'skipTurnAfterThreeOnes': skipTurnAfterThreeOnes,
+    };
+  }
+}
+
 /// Represents a single token in the game
 class Token {
   int id; // 0-3 (4 tokens per player)
@@ -65,9 +161,12 @@ class Player {
   PlayerColor color;
   PlayerType type;
   DifficultyLevel? difficulty;
+  int tokenCount;
   List<Token> tokens;
   bool isCurrentTurn;
   int consecutiveSixes;
+  int consecutiveOnes;
+  int skipTurns;
   int tokensReachedHome;
 
   Player({
@@ -76,17 +175,23 @@ class Player {
     required this.color,
     this.type = PlayerType.human,
     this.difficulty,
+    this.tokenCount = 4,
     List<Token>? tokens,
     this.isCurrentTurn = false,
     this.consecutiveSixes = 0,
+    this.consecutiveOnes = 0,
+    this.skipTurns = 0,
     this.tokensReachedHome = 0,
-  }) : tokens = tokens ?? _createTokens(color);
+  }) : tokens = tokens ?? _createTokens(color, tokenCount);
 
-  static List<Token> _createTokens(PlayerColor color) {
-    return List.generate(4, (index) => Token(id: index, playerColor: color));
+  static List<Token> _createTokens(PlayerColor color, int tokenCount) {
+    return List.generate(
+      tokenCount,
+      (index) => Token(id: index, playerColor: color),
+    );
   }
 
-  bool get hasWon => tokensReachedHome == 4;
+  bool get hasWon => tokensReachedHome == tokenCount;
   bool get hasOpenedToken => tokens.any((t) => t.position >= 0);
 
   factory Player.fromJson(Map<String, dynamic> json) {
@@ -98,12 +203,15 @@ class Player {
       difficulty: json['difficulty'] != null
           ? DifficultyLevel.values[json['difficulty']]
           : null,
+      tokenCount: json['tokenCount'] as int? ?? 4,
       tokens: (json['tokens'] as List<dynamic>?)
           ?.map((t) => Token.fromJson(t as Map<String, dynamic>))
           .toList(),
-      isCurrentTurn: json['isCurrentTurn'],
-      consecutiveSixes: json['consecutiveSixes'],
-      tokensReachedHome: json['tokensReachedHome'],
+      isCurrentTurn: json['isCurrentTurn'] as bool? ?? false,
+      consecutiveSixes: json['consecutiveSixes'] as int? ?? 0,
+      consecutiveOnes: json['consecutiveOnes'] as int? ?? 0,
+      skipTurns: json['skipTurns'] as int? ?? 0,
+      tokensReachedHome: json['tokensReachedHome'] as int? ?? 0,
     );
   }
 
@@ -114,9 +222,12 @@ class Player {
       'color': color.index,
       'type': type.index,
       'difficulty': difficulty?.index,
+      'tokenCount': tokenCount,
       'tokens': tokens.map((t) => t.toJson()).toList(),
       'isCurrentTurn': isCurrentTurn,
       'consecutiveSixes': consecutiveSixes,
+      'consecutiveOnes': consecutiveOnes,
+      'skipTurns': skipTurns,
       'tokensReachedHome': tokensReachedHome,
     };
   }
@@ -128,9 +239,12 @@ class Player {
       color: color,
       type: type,
       difficulty: difficulty,
+      tokenCount: tokenCount,
       tokens: tokens.map((t) => t.copy()).toList(),
       isCurrentTurn: isCurrentTurn,
       consecutiveSixes: consecutiveSixes,
+      consecutiveOnes: consecutiveOnes,
+      skipTurns: skipTurns,
       tokensReachedHome: tokensReachedHome,
     );
   }
@@ -179,6 +293,7 @@ class GameState {
   DateTime? startedAt;
   DateTime? endedAt;
   GameMode gameMode;
+  LudoRuleSettings rules;
   int? selectedTokenId; // -1 if no token selected
 
   GameState({
@@ -194,6 +309,7 @@ class GameState {
     this.startedAt,
     this.endedAt,
     required this.gameMode,
+    this.rules = const LudoRuleSettings(),
     this.selectedTokenId,
   });
 
@@ -222,6 +338,7 @@ class GameState {
           : null,
       endedAt: json['endedAt'] != null ? DateTime.parse(json['endedAt']) : null,
       gameMode: GameMode.values[json['gameMode']],
+      rules: LudoRuleSettings.fromJson(json['rules'] as Map<String, dynamic>?),
       selectedTokenId: json['selectedTokenId'],
     );
   }
@@ -240,6 +357,7 @@ class GameState {
       'startedAt': startedAt?.toIso8601String(),
       'endedAt': endedAt?.toIso8601String(),
       'gameMode': gameMode.index,
+      'rules': rules.toJson(),
       'selectedTokenId': selectedTokenId,
     };
   }
@@ -258,6 +376,7 @@ class GameState {
       startedAt: startedAt,
       endedAt: endedAt,
       gameMode: gameMode,
+      rules: rules,
       selectedTokenId: selectedTokenId,
     );
   }

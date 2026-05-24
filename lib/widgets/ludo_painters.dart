@@ -7,11 +7,13 @@ class LudoBoardPainter extends CustomPainter {
   final GameState gameState;
   final double boardSize;
   final Map<String, dynamic>? lastMove;
+  final bool showSafeCells;
 
   LudoBoardPainter({
     required this.gameState,
     this.boardSize = 400,
     this.lastMove,
+    this.showSafeCells = true,
   });
 
   // Standard Ludo Path Coordinates (52 steps around the perimeter)
@@ -214,11 +216,13 @@ class LudoBoardPainter extends CustomPainter {
       paintCell(coord, _getPlayerColor(color));
     });
 
-    // Paint safe positions (stars) from BoardConfig
-    for (final idx in BoardConfig.safePositions) {
-      final tmp = Token(id: 0, playerColor: PlayerColor.red, position: idx);
-      final coord = gridCoordinateForToken(tmp);
-      paintCell(coord, Colors.grey[800]!, isStar: true);
+    // Paint safe positions (stars) from BoardConfig when enabled.
+    if (showSafeCells) {
+      for (final idx in BoardConfig.safePositions) {
+        final tmp = Token(id: 0, playerColor: PlayerColor.red, position: idx);
+        final coord = gridCoordinateForToken(tmp);
+        paintCell(coord, Colors.grey[800]!, isStar: true);
+      }
     }
 
     // Paint home-stretch cells (first 5 steps) for each color
@@ -630,6 +634,7 @@ class LudoBoardPainter extends CustomPainter {
   @override
   bool shouldRepaint(LudoBoardPainter oldDelegate) {
     return oldDelegate.gameState != gameState ||
-        oldDelegate.lastMove != lastMove;
+        oldDelegate.lastMove != lastMove ||
+        oldDelegate.showSafeCells != showSafeCells;
   }
 }

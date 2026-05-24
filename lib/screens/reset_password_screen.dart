@@ -14,6 +14,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
   final _passwordController = TextEditingController();
   final _confirmController = TextEditingController();
   bool _obscure = true;
+  bool _didLoadRouteToken = false;
 
   @override
   void dispose() {
@@ -21,6 +22,20 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
     _passwordController.dispose();
     _confirmController.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_didLoadRouteToken) {
+      return;
+    }
+
+    final args = ModalRoute.of(context)?.settings.arguments;
+    if (args is String && args.trim().isNotEmpty) {
+      _tokenController.text = args.trim();
+    }
+    _didLoadRouteToken = true;
   }
 
   Future<void> _submit() async {

@@ -47,7 +47,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
         );
       }
       // Optionally navigate to reset screen
-      Navigator.of(context).pushNamed('/reset-password');
+      Navigator.of(context).pushNamed('/reset-password', arguments: token);
     } else {
       final message = body['message'] ?? 'Request failed';
       ScaffoldMessenger.of(

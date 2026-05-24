@@ -18,6 +18,8 @@ class GameProvider extends ChangeNotifier {
   dynamic pendingUndoRequest;
   Map<String, dynamic>? lastMoveEvent;
   bool awaitingServer = false;
+  bool _autoPlayScheduled = false;
+  bool _isAutoPlaying = false;
 
   GameState? get gameState => _gameController?.gameState;
   bool get isGamePlaying => gameState?.isPlaying ?? false;
@@ -33,11 +35,24 @@ class GameProvider extends ChangeNotifier {
   void initializeOfflineGame({
     required List<Player> players,
     required GameMode gameMode,
+    LudoRuleSettings rules = const LudoRuleSettings(),
   }) {
     _gameController = GameController();
-    _gameController!.initializeGame(players: players, gameMode: gameMode);
+    _gameController!.initializeGame(
+      players: players,
+      gameMode: gameMode,
+      rules: rules,
+    );
     _gameController!.onGameStateChanged = () => notifyListeners();
-    _gameController!.onTurnChanged = (_) => notifyListeners();
+    _gameController!.onTurnChanged = (player) {
+      notifyListeners();
+      try {
+        final p = player as Player? ?? _gameController!.gameState.currentPlayer;
+        _scheduleAutoPlayIfNeeded(p);
+      } catch (e) {
+        // ignore
+      }
+    };
     _gameController!.onTokenMoved = (_) => notifyListeners();
     _gameController!.onGameEnded = (_) => notifyListeners();
 
@@ -58,11 +73,13 @@ class GameProvider extends ChangeNotifier {
     required List<Player> players,
     required String serverUrl,
     required String userId,
+    LudoRuleSettings rules = const LudoRuleSettings(),
   }) {
     _gameController = GameController();
     _gameController!.initializeGame(
       players: players,
       gameMode: GameMode.online,
+      rules: rules,
     );
     _gameController!.onGameStateChanged = () => notifyListeners();
     _gameController!.onTurnChanged = (_) => notifyListeners();
@@ -95,6 +112,11 @@ class GameProvider extends ChangeNotifier {
   void startGame() {
     _gameController?.startGame();
     notifyListeners();
+    try {
+      _scheduleAutoPlayIfNeeded(_gameController?.gameState.currentPlayer);
+    } catch (e) {
+      // ignore
+    }
   }
 
   /// Roll dice
@@ -138,9 +160,11 @@ class GameProvider extends ChangeNotifier {
       final movableTokens = LudoGameLogic.getMovableTokens(
         gameState!.currentPlayer,
         diceValue,
+        allPlayers: gameState!.players,
+        rules: gameState!.rules,
       );
 
-      if (movableTokens.isEmpty && diceValue != 6) {
+      if (movableTokens.isEmpty) {
         _gameController!.endTurn();
       }
     }
@@ -163,6 +187,7 @@ class GameProvider extends ChangeNotifier {
         token,
         dice,
         token.playerColor,
+        rules: gameState!.rules,
       );
 
       // prevent local double-moves until server responds
@@ -206,46 +231,101 @@ class GameProvider extends ChangeNotifier {
     return LudoGameLogic.getMovableTokens(
       gameState!.currentPlayer,
       gameState!.diceValue,
+      allPlayers: gameState!.players,
+      rules: gameState!.rules,
     );
   }
 
   /// Auto play AI turn
   Future<void> autoPlayAITurn() async {
-    if (_gameController == null || _aiPlayer == null) return;
+    if (_gameController == null || gameState == null) return;
     if (!isGamePlaying) return;
+    if (_isAutoPlaying) return;
 
-    // Wait for player to see dice
-    await Future.delayed(const Duration(milliseconds: 1500));
+    _isAutoPlaying = true;
+    bool needsAnotherAutoTurn = false;
+    final String? aiTurnPlayerId = gameState!.currentPlayer.id;
+    try {
+      // Wait for player to see dice
+      await Future.delayed(const Duration(milliseconds: 1500));
 
-    final aiPlayer = gameState!.currentPlayer;
-    final movableTokens = LudoGameLogic.getMovableTokens(aiPlayer, diceValue);
-
-    if (movableTokens.isNotEmpty) {
-      final selectedToken = _aiPlayer!.getBestMove(
-        aiPlayer,
-        diceValue,
-        gameState!.players,
-      );
-
-      if (selectedToken != null) {
-        await Future.delayed(const Duration(milliseconds: 800));
-        moveToken(selectedToken);
-      }
-    } else {
-      // No movable token
-      if (diceValue == 6) {
-        // Extra roll on 6: roll again and let AI decide
-        await Future.delayed(const Duration(milliseconds: 600));
-        final newDice = rollDice();
-        // try autoplay again for the new roll
-        await Future.delayed(const Duration(milliseconds: 800));
-        await autoPlayAITurn();
+      if (!isGamePlaying ||
+          gameState == null ||
+          gameState!.currentPlayer.id != aiTurnPlayerId) {
         return;
       }
 
-      _gameController!.endTurn();
-      notifyListeners();
+      final aiPlayer = gameState!.currentPlayer;
+      final aiController =
+          _aiPlayer ??
+          AIPlayer(difficulty: aiPlayer.difficulty ?? DifficultyLevel.medium);
+
+      // If dice hasn't been rolled yet, roll for the AI
+      if (diceValue == 0) {
+        rollDice();
+        await Future.delayed(const Duration(milliseconds: 900));
+        if (!isGamePlaying ||
+            gameState == null ||
+            gameState!.currentPlayer.id != aiTurnPlayerId) {
+          return;
+        }
+      }
+
+      final movableTokens = LudoGameLogic.getMovableTokens(
+        aiPlayer,
+        diceValue,
+        allPlayers: gameState!.players,
+        rules: gameState!.rules,
+      );
+
+      if (movableTokens.isNotEmpty) {
+        final selectedToken = aiController.getBestMove(
+          aiPlayer,
+          diceValue,
+          gameState!.players,
+          rules: gameState!.rules,
+        );
+
+        if (selectedToken != null) {
+          await Future.delayed(const Duration(milliseconds: 800));
+          final moved = moveToken(selectedToken);
+          needsAnotherAutoTurn =
+              moved &&
+              isGamePlaying &&
+              gameState != null &&
+              gameState!.currentPlayer.id == aiTurnPlayerId &&
+              gameState!.currentPlayer.type == PlayerType.ai &&
+              !gameState!.diceRolled;
+        } else {
+          _gameController!.endTurn();
+        }
+      } else {
+        // No movable token: pass the turn to keep the game moving.
+        _gameController!.endTurn();
+        notifyListeners();
+      }
+    } finally {
+      _isAutoPlaying = false;
     }
+
+    if (needsAnotherAutoTurn) {
+      _scheduleAutoPlayIfNeeded(gameState?.currentPlayer);
+    }
+  }
+
+  void _scheduleAutoPlayIfNeeded(Player? player) {
+    if (player == null) return;
+    if (player.type != PlayerType.ai) return;
+    if (_socketService != null && _socketService!.isConnectedToServer()) return;
+    if (_autoPlayScheduled || _isAutoPlaying) return;
+
+    _autoPlayScheduled = true;
+    Future.delayed(const Duration(milliseconds: 600), () async {
+      _autoPlayScheduled = false;
+      try {
+        await autoPlayAITurn();
+      } finally {}
+    });
   }
 
   /// Pause game
