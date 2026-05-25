@@ -5,20 +5,20 @@ import 'package:flutter/foundation.dart';
 import 'backend_platform_stub.dart'
     if (dart.library.io) 'backend_platform_io.dart';
 
-/// Local-dev backend configuration.
+/// Backend configuration.
 ///
 /// Defaults:
 /// - Desktop: `http://127.0.0.1:7860/api`
 /// - Android emulator: `http://10.0.2.2:7860/api`
-/// - Android physical device: `http://192.168.1.19:7860/api` for the current
-///   LAN. Change this if your PC gets a different IP, or override with
-///   `--dart-define=API_BASE_URL=...`.
+/// - Android physical device / iOS / unknown: public backend so calls work
+///   across networks without requiring a LAN-only address.
+///
+/// Override with `--dart-define=API_BASE_URL=...` for local testing.
 class BackendConfig {
   static const String _productionApiBase =
       'https://anil1515-chess-backend.hf.space/api';
   static const String _productionSocketBase =
       'https://anil1515-chess-backend.hf.space';
-  static const String _lanApiBase = 'http://192.168.1.19:7860/api';
 
   static const String _apiDefine = String.fromEnvironment(
     'API_BASE_URL',
@@ -45,13 +45,13 @@ class BackendConfig {
       case BackendDeviceType.androidEmulator:
         return 'http://10.0.2.2:7860/api';
       case BackendDeviceType.androidPhysical:
-        return _lanApiBase;
+        return _productionApiBase;
       case BackendDeviceType.ios:
-        return 'http://127.0.0.1:7860/api';
+        return _productionApiBase;
       case BackendDeviceType.desktop:
         return 'http://127.0.0.1:7860/api';
       case BackendDeviceType.unknown:
-        return _lanApiBase;
+        return _productionApiBase;
     }
   }
 

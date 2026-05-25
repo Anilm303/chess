@@ -1,0 +1,74 @@
+name: Deploy Flutter Web to Hugging Face
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: hf-deploy-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    env:
+      HF_USER: Anil1515
+      HF_SPACE: chess-frontend
+      API_BASE_URL: https://anil1515-chess-backend.hf.space/api
+      SOCKET_BASE_URL: https://anil1515-chess-backend.hf.space
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Get dependencies
+        run: flutter pub get
+
+      - name: Build Flutter web
+        run: |
+          flutter build web --release \
+            --dart-define=API_BASE_URL=${{ env.API_BASE_URL }} \
+            --dart-define=SOCKET_BASE_URL=${{ env.SOCKET_BASE_URL }}
+
+      - name: Configure git identity
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Push build to Hugging Face Space
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${HF_TOKEN:-}" ]; then
+            echo "HF_TOKEN secret is missing. Add a Hugging Face write token in GitHub Secrets."
+            exit 1
+          fi
+
+          git config --global url."https://oauth2:${HF_TOKEN}@huggingface.co/".insteadOf "https://huggingface.co/"
+
+          rm -rf hf-space
+          git clone "https://huggingface.co/spaces/${HF_USER}/${HF_SPACE}" hf-space
+
+          rsync -a --delete build/web/ hf-space/
+
+          cd hf-space
+          git add -A
+
+          if git diff --cached --quiet; then
+            echo "No web changes to deploy."
+            exit 0
+          fi
+
+          git commit -m "Deploy Flutter web from GitHub Actions"
+          git push origin HEAD:main
