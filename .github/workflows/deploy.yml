@@ -72,6 +72,8 @@ jobs:
           rsync -a --delete build/web/ hf-space/
 
           cd hf-space
+          git remote set-url origin "${HF_REPO_URL}"
+          git remote -v
           git add -A
 
           if git diff --cached --quiet; then
