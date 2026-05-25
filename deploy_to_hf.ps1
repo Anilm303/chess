@@ -7,7 +7,7 @@ Usage (PowerShell):
 
 Example:
   $env:HF_TOKEN = 'hf_XXXXXXXX...'
-  .\deploy_to_hf.ps1 -HFUser Anil1515 -HFSpace chess-frontend
+  .\deploy_to_hf.ps1 -HFUser Anil1515 -HFSpace chess-frontend-static
 
 This script will:
   - Clone (or update) the Space repo
@@ -21,7 +21,7 @@ as the password (create one at https://huggingface.co/settings/tokens).
 
 param(
     [string]$HFUser = "Anil1515",
-    [string]$HFSpace = "chess-frontend",
+    [string]$HFSpace = "chess-frontend-static",
   [string]$LocalBuild = "$PSScriptRoot\build\web"
 )
 
