@@ -10,32 +10,22 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. Checkout code
-      - name: Checkout Repository
-        uses: actions/checkout@v3
+      - uses: actions/checkout@v3
 
-      # 2. Setup Flutter (FIXED VERSION)
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
+      - uses: subosito/flutter-action@v2
         with:
-          flutter-version: "3.24.0"
-          channel: stable
+          flutter-version: "3.19.6"
 
-      # 3. Install dependencies
-      - name: Install Dependencies
-        run: flutter pub get
+      - run: flutter pub get
 
-      # 4. Build Flutter Web
-      - name: Build Web
-        run: flutter build web --release
+      - run: flutter build web --release
 
-      # 5. Deploy to Hugging Face
-      - name: Deploy to Hugging Face Space
+      - name: Deploy
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
-          git config --global user.email "github-actions@example.com"
           git config --global user.name "github-actions"
+          git config --global user.email "github-actions@example.com"
 
           git clone https://user:$HF_TOKEN@huggingface.co/spaces/Anil1515/chess-frontend-static hf
 
@@ -44,5 +34,5 @@ jobs:
 
           cd hf
           git add .
-          git commit -m "auto deploy from GitHub" || echo "no changes"
+          git commit -m "auto deploy" || echo "no changes"
           git push
