@@ -10,26 +10,28 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. Checkout repo
+      # Checkout repo
       - uses: actions/checkout@v3
 
-      # 2. Setup Flutter (stable safe version)
+      # Setup Flutter (STABLE COMPATIBLE)
       - uses: subosito/flutter-action@v2
         with:
-          flutter-version: "3.22.0"
+          flutter-version: "3.19.6"
           channel: stable
 
-      # 3. Fix dependencies (important for errors)
-      - name: Clean & Get Packages
-        run: |
-          flutter clean
-          flutter pub get
+      # Clean project
+      - name: Clean project
+        run: flutter clean
 
-      # 4. Build web
+      # Get dependencies
+      - name: Get packages
+        run: flutter pub get
+
+      # Build web
       - name: Build Flutter Web
         run: flutter build web --release
 
-      # 5. Deploy to Hugging Face
+      # Deploy to Hugging Face
       - name: Deploy to HF Space
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
@@ -44,5 +46,5 @@ jobs:
 
           cd hf
           git add .
-          git commit -m "auto deploy from GitHub" || echo "no changes"
+          git commit -m "auto deploy" || echo "no changes"
           git push
