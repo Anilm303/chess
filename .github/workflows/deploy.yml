@@ -1,4 +1,4 @@
-name: Deploy to Hugging Face
+name: Deploy Flutter Web to Hugging Face
 
 on:
   push:
@@ -6,35 +6,43 @@ on:
       - main
 
 jobs:
-  deploy:
+  build-and-deploy:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
+      # 1. Checkout code
+      - name: Checkout Repository
         uses: actions/checkout@v3
 
+      # 2. Setup Flutter (FIXED)
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: stable
+          flutter-version: "3.22.0"
+          channel: stable
 
-      - name: Install dependencies
+      # 3. Get dependencies
+      - name: Install Dependencies
         run: flutter pub get
 
-      - name: Build web
+      # 4. Build Web
+      - name: Build Flutter Web
         run: flutter build web --release
 
-      - name: Deploy to Hugging Face
+      # 5. Deploy to Hugging Face
+      - name: Deploy to Hugging Face Space
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
-          git clone https://user:$HF_TOKEN@huggingface.co/spaces/YOUR_USERNAME/YOUR_SPACE_NAME hf
+          git config --global user.email "github-actions@example.com"
+          git config --global user.name "github-actions"
+
+          git clone https://user:$HF_TOKEN@huggingface.co/spaces/Anil1515/chess-frontend-static hf
+
           rm -rf hf/*
           cp -r build/web/* hf/
 
           cd hf
-          git config user.name "github-actions"
-          git config user.email "actions@github.com"
           git add .
-          git commit -m "auto deploy" || echo "no changes"
+          git commit -m "auto deploy from GitHub" || echo "no changes"
           git push
