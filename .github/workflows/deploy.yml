@@ -51,6 +51,9 @@ jobs:
         run: |
           set -euo pipefail
 
+          workspace_root="${GITHUB_WORKSPACE}"
+          build_dir="${GITHUB_WORKSPACE}/build/web"
+
           echo "Target Hugging Face Space: ${HF_REPO_URL}"
 
           if [ -z "${HF_TOKEN:-}" ]; then
@@ -69,10 +72,24 @@ jobs:
 
           for attempt in 1 2 3; do
             echo "Deploy attempt ${attempt}/3"
+            cd "${workspace_root}"
             rm -rf hf-space
             git clone "${HF_REPO_URL}" hf-space
 
-            rsync -a --delete build/web/ hf-space/
+            preserved_root_files=(.gitattributes .gitignore README.md .nojekyll)
+            for preserved_file in "${preserved_root_files[@]}"; do
+              if [ -f "hf-space/${preserved_file}" ]; then
+                cp "hf-space/${preserved_file}" "${RUNNER_TEMP}/${preserved_file}.bak"
+              fi
+            done
+
+            rsync -a --delete "${build_dir}"/ hf-space/
+
+            for preserved_file in "${preserved_root_files[@]}"; do
+              if [ -f "${RUNNER_TEMP}/${preserved_file}.bak" ]; then
+                cp "${RUNNER_TEMP}/${preserved_file}.bak" "hf-space/${preserved_file}"
+              fi
+            done
 
             cd hf-space
             git remote set-url origin "${HF_REPO_URL}"
