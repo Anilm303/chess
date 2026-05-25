@@ -14,19 +14,19 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v3
 
-      # 2. Setup Flutter (FIXED)
+      # 2. Setup Flutter (FIXED VERSION)
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: "3.22.0"
+          flutter-version: "3.24.0"
           channel: stable
 
-      # 3. Get dependencies
+      # 3. Install dependencies
       - name: Install Dependencies
         run: flutter pub get
 
-      # 4. Build Web
-      - name: Build Flutter Web
+      # 4. Build Flutter Web
+      - name: Build Web
         run: flutter build web --release
 
       # 5. Deploy to Hugging Face
