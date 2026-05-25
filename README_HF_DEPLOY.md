@@ -28,6 +28,14 @@ flutter build web --release --dart-define=API_BASE_URL=https://Anil1515-chess-ba
 
 For GitHub Actions, add `HF_TOKEN`, `HUGGINGFACE_TOKEN`, or `hf__token` as a repository secret. The workflow will use whichever one is present.
 
+Also set GitHub repository variables if your Space slug is different:
+
+- `HF_USER` → your Hugging Face username
+- `HF_SPACE` → your Space repo name
+- `HF_REPO_URL` → full Space git URL, if you want to override the default
+
+The Space must already exist on Hugging Face before the workflow can clone it.
+
 If you prefer manual steps or upload via the HF web UI, create a Static Space and upload the *contents* of `build/web` (not the parent folder) to the Space root:
 
 - `index.html`
