@@ -46,12 +46,12 @@ jobs:
 
       - name: Push build to Hugging Face Space
         env:
-          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          HF_TOKEN: ${{ secrets.HF_TOKEN || secrets.HUGGINGFACE_TOKEN }}
         run: |
           set -euo pipefail
 
           if [ -z "${HF_TOKEN:-}" ]; then
-            echo "HF_TOKEN secret is missing. Add a Hugging Face write token in GitHub Secrets."
+            echo "Missing Hugging Face token. Add HF_TOKEN or HUGGINGFACE_TOKEN in GitHub Secrets."
             exit 1
           fi
 

@@ -26,6 +26,8 @@ flutter build web --release --dart-define=API_BASE_URL=https://Anil1515-chess-ba
 
 5. After pushing, open the Space page and check `Logs` → `Build` and `Container` for build/run output. If the App tab is blank, open the browser DevTools console to see runtime errors.
 
+For GitHub Actions, add either `HF_TOKEN` or `HUGGINGFACE_TOKEN` as a repository secret. The workflow will use whichever one is present.
+
 If you prefer manual steps or upload via the HF web UI, create a Static Space and upload the *contents* of `build/web` (not the parent folder) to the Space root:
 
 - `index.html`
