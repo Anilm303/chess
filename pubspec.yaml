@@ -18,7 +18,7 @@ dependencies:
   http: ^1.1.0
   socket_io_client: ^2.0.0
 
-  flutter_webrtc: 0.9.48+hotfix.1
+  flutter_webrtc: ^1.4.1
   permission_handler: ^11.3.1
 
   firebase_core: ^3.0.0
@@ -32,6 +32,7 @@ dependencies:
 
   image_picker: ^1.0.0
   video_player: ^2.9.2
+  emoji_picker_flutter: ^4.4.0
 
   crypto: ^3.0.2
 

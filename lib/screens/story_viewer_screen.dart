@@ -174,8 +174,7 @@ class _StoryViewerScreenState extends State<StoryViewerScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isOwner =
-        widget.storyGroup.username ==
+    final isOwner = widget.storyGroup.username ==
         context.read<AuthService>().currentUser?.username;
 
     return Scaffold(
@@ -369,7 +368,7 @@ class _StoryViewerScreenState extends State<StoryViewerScreen> {
                           backgroundColor: Colors.grey[900]!,
                           iconColor: Colors.white54,
                         ),
-                        bottomActionBarConfig: const BottomActionBarConfig(
+                        bottomActionBarConfig: BottomActionBarConfig(
                           enabled: false,
                         ),
                         searchViewConfig: SearchViewConfig(
@@ -496,7 +495,9 @@ class _StoryViewerScreenState extends State<StoryViewerScreen> {
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
                                   Text(
-                                    _stories[_currentIndex].reactions.values
+                                    _stories[_currentIndex]
+                                        .reactions
+                                        .values
                                         .take(3)
                                         .join(''),
                                     style: const TextStyle(fontSize: 14),
@@ -850,8 +851,8 @@ class _StoryViewerScreenState extends State<StoryViewerScreen> {
     final initials = names.length >= 2
         ? '${names[0][0].toUpperCase()}${names[1][0].toUpperCase()}'
         : names.isNotEmpty && names.first.isNotEmpty
-        ? names.first[0].toUpperCase()
-        : 'S';
+            ? names.first[0].toUpperCase()
+            : 'S';
 
     return Container(
       decoration: BoxDecoration(

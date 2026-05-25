@@ -60,10 +60,10 @@ class _ChatScreenState extends State<ChatScreen> {
 
   void _stopTyping() {
     context.read<MessageService>().sendTyping(
-      isGroupChat: widget.isGroupChat,
-      targetId: _chatTargetId(),
-      isTyping: false,
-    );
+          isGroupChat: widget.isGroupChat,
+          targetId: _chatTargetId(),
+          isTyping: false,
+        );
   }
 
   void _handleTypingChanged(String value) {
@@ -80,10 +80,10 @@ class _ChatScreenState extends State<ChatScreen> {
       _typingTimer = Timer(const Duration(seconds: 2), () {
         if (!mounted) return;
         context.read<MessageService>().sendTyping(
-          isGroupChat: widget.isGroupChat,
-          targetId: _chatTargetId(),
-          isTyping: false,
-        );
+              isGroupChat: widget.isGroupChat,
+              targetId: _chatTargetId(),
+              isTyping: false,
+            );
       });
     }
   }
@@ -112,8 +112,8 @@ class _ChatScreenState extends State<ChatScreen> {
     return widget.chatUser.isOnline
         ? 'Online'
         : widget.chatUser.lastSeen != null
-        ? 'Last seen ${widget.chatUser.lastSeen}'
-        : null;
+            ? 'Last seen ${widget.chatUser.lastSeen}'
+            : null;
   }
 
   ChatUser? _callTarget(MessageService messageService) {
@@ -521,16 +521,13 @@ class _ChatScreenState extends State<ChatScreen> {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final pageBackground = isDark ? Colors.black : Colors.white;
-    final incomingBubble = isDark
-        ? const Color(0xFF1A1A1C)
-        : const Color(0xFFF2F3F5);
+    final incomingBubble =
+        isDark ? const Color(0xFF1A1A1C) : const Color(0xFFF2F3F5);
     final composerBackground = pageBackground;
-    final inputBackground = isDark
-        ? const Color(0xFF1E1E20)
-        : const Color(0xFFF2F3F5);
-    final accentIconColor = isDark
-        ? const Color(0xFF4C9BFF)
-        : MessengerColors.messengerBlue;
+    final inputBackground =
+        isDark ? const Color(0xFF1E1E20) : const Color(0xFFF2F3F5);
+    final accentIconColor =
+        isDark ? const Color(0xFF4C9BFF) : MessengerColors.messengerBlue;
     final messages = widget.isGroupChat
         ? messageService.currentGroupConversation
         : messageService.currentConversation;
@@ -610,9 +607,8 @@ class _ChatScreenState extends State<ChatScreen> {
                 final isMe =
                     msg.sender == messageService.currentUserProfile?.username;
                 return Align(
-                  alignment: isMe
-                      ? Alignment.centerRight
-                      : Alignment.centerLeft,
+                  alignment:
+                      isMe ? Alignment.centerRight : Alignment.centerLeft,
                   child: GestureDetector(
                     onLongPress: () => _showMessageOptions(context, msg, isMe),
                     child: Container(
@@ -653,7 +649,7 @@ class _ChatScreenState extends State<ChatScreen> {
                     iconColorSelected: MessengerColors.messengerBlue,
                     backgroundColor: Theme.of(context).cardColor,
                   ),
-                  bottomActionBarConfig: const BottomActionBarConfig(
+                  bottomActionBarConfig: BottomActionBarConfig(
                     enabled: false,
                   ),
                   searchViewConfig: SearchViewConfig(
@@ -714,8 +710,8 @@ class _ChatScreenState extends State<ChatScreen> {
                         hintText: _isUploading
                             ? 'Sending...'
                             : (canDirectInteract
-                                  ? 'Type a message'
-                                  : 'Become friends to chat'),
+                                ? 'Type a message'
+                                : 'Become friends to chat'),
                         hintStyle: TextStyle(
                           color: isDark
                               ? Colors.white.withOpacity(0.65)
@@ -764,9 +760,8 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Widget _buildMessageBody(BuildContext context, Message msg, bool isMe) {
-    final bubbleTextColor = isMe
-        ? Colors.white
-        : Theme.of(context).textTheme.bodyLarge?.color;
+    final bubbleTextColor =
+        isMe ? Colors.white : Theme.of(context).textTheme.bodyLarge?.color;
 
     if (msg.messageType == 'deleted') {
       return Text(
@@ -847,9 +842,8 @@ class _ChatScreenState extends State<ChatScreen> {
     }
 
     return Column(
-      crossAxisAlignment: isMe
-          ? CrossAxisAlignment.end
-          : CrossAxisAlignment.start,
+      crossAxisAlignment:
+          isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
         body,
