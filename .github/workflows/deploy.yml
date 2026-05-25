@@ -12,10 +12,10 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      # 🔥 IMPORTANT FIX (upgrade Flutter)
+      # 🔥 STABLE FLUTTER VERSION (IMPORTANT)
       - uses: subosito/flutter-action@v2
         with:
-          flutter-version: "3.22.0"
+          flutter-version: "3.19.6"
           channel: stable
 
       - name: Clean project
@@ -27,7 +27,7 @@ jobs:
       - name: Build web
         run: flutter build web --release
 
-      - name: Deploy to HF
+      - name: Deploy to Hugging Face
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
