@@ -10,29 +10,24 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # Checkout repo
       - uses: actions/checkout@v3
 
-      # Setup Flutter (STABLE COMPATIBLE)
+      # 🔥 IMPORTANT FIX (upgrade Flutter)
       - uses: subosito/flutter-action@v2
         with:
-          flutter-version: "3.19.6"
+          flutter-version: "3.22.0"
           channel: stable
 
-      # Clean project
       - name: Clean project
         run: flutter clean
 
-      # Get dependencies
-      - name: Get packages
+      - name: Get dependencies
         run: flutter pub get
 
-      # Build web
-      - name: Build Flutter Web
+      - name: Build web
         run: flutter build web --release
 
-      # Deploy to Hugging Face
-      - name: Deploy to HF Space
+      - name: Deploy to HF
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
