@@ -115,7 +115,7 @@ jobs:
             git commit -m "Deploy Flutter web from GitHub Actions"
 
             set +e
-            push_output=$(git push --force origin HEAD:main 2>&1)
+            push_output=$(git push origin HEAD:main 2>&1)
             push_status=$?
             set -e
 
