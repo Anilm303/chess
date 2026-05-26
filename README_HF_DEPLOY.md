@@ -19,7 +19,7 @@ flutter build web --release --dart-define=API_BASE_URL=https://Anil1515-chess-ba
 3. Run the included `deploy_to_hf.ps1` script (edit parameters if your Space name differs):
 ```powershell
 # from C:\Users\Lenovo\Desktop\chess
-.\chess-main\deploy_to_hf.ps1 -HFUser Anil1515 -HFSpace chess-frontend-static
+.\chess-main\deploy_to_hf.ps1 -HFUser Anil1515 -HFSpace chess-flutter
 ```
 
 4. When prompted for credentials during `git push`, enter your Hugging Face username and paste your access token as the password.
@@ -31,7 +31,7 @@ For GitHub Actions, add `HF_TOKEN`, `HUGGINGFACE_TOKEN`, or `hf__token` as a rep
 Also set GitHub repository variables if your Space slug is different:
 
 - `HF_USER` → your Hugging Face username
-- `HF_SPACE` → your Space repo name (`chess-frontend-static` by default)
+- `HF_SPACE` → your Space repo name (`chess-flutter` by default)
 - `HF_REPO_URL` → full Space git URL, if you want to override the default
 
 The Space must already exist on Hugging Face before the workflow can clone it.
