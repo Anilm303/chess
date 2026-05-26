@@ -92,7 +92,9 @@ jobs:
 
             rm -f hf-space/.gitattributes
 
-            rsync -a --delete "${build_dir}"/ hf-space/
+            rsync -a --delete --exclude='.last_build_id' "${build_dir}"/ hf-space/
+
+            rm -f hf-space/.last_build_id
 
             for preserved_file in "${preserved_root_files[@]}"; do
               if [ -f "${RUNNER_TEMP}/${preserved_file}.bak" ]; then
