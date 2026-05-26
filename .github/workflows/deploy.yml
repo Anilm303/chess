@@ -83,12 +83,14 @@ jobs:
 
             cd "${workspace_root}"
 
-            preserved_root_files=(.gitattributes .gitignore README.md .nojekyll)
+            preserved_root_files=(.gitignore README.md .nojekyll)
             for preserved_file in "${preserved_root_files[@]}"; do
               if [ -f "hf-space/${preserved_file}" ]; then
                 cp "hf-space/${preserved_file}" "${RUNNER_TEMP}/${preserved_file}.bak"
               fi
             done
+
+            rm -f hf-space/.gitattributes
 
             rsync -a --delete "${build_dir}"/ hf-space/
 
@@ -97,6 +99,8 @@ jobs:
                 cp "${RUNNER_TEMP}/${preserved_file}.bak" "hf-space/${preserved_file}"
               fi
             done
+
+              rm -f hf-space/.gitattributes
 
             cd hf-space
             git remote set-url origin "${HF_REPO_URL}"
