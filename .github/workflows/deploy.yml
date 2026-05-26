@@ -81,6 +81,8 @@ jobs:
               git fetch --unshallow origin main
             fi
 
+            git pull --rebase origin main
+
             cd "${workspace_root}"
 
             preserved_root_files=(.gitignore README.md .nojekyll)
