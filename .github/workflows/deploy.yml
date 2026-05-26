@@ -100,7 +100,7 @@ jobs:
               fi
             done
 
-              rm -f hf-space/.gitattributes
+            rm -f hf-space/.gitattributes
 
             cd hf-space
             git remote set-url origin "${HF_REPO_URL}"
