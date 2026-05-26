@@ -76,6 +76,13 @@ jobs:
             rm -rf hf-space
             git clone "${HF_REPO_URL}" hf-space
 
+            cd hf-space
+            if git rev-parse --is-shallow-repository 2>/dev/null | grep -qi true; then
+              git fetch --unshallow origin main
+            fi
+
+            cd "${workspace_root}"
+
             preserved_root_files=(.gitattributes .gitignore README.md .nojekyll)
             for preserved_file in "${preserved_root_files[@]}"; do
               if [ -f "hf-space/${preserved_file}" ]; then
