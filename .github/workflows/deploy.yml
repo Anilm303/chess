@@ -37,6 +37,7 @@ jobs:
       - name: Build Flutter web
         run: |
           flutter build web --release \
+            --web-renderer html \
             --dart-define=API_BASE_URL=${{ env.API_BASE_URL }} \
             --dart-define=SOCKET_BASE_URL=${{ env.SOCKET_BASE_URL }}
 
