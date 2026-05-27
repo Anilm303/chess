@@ -118,13 +118,6 @@ jobs:
 
             git commit -m "Deploy Flutter web from GitHub Actions"
 
-            # Rebase requires a clean worktree. Remove any transient leftovers.
-            git checkout -- .
-            git clean -fd
-
-            git fetch origin main
-            git rebase origin/main
-
             set +e
             push_output=$(git push origin HEAD:main 2>&1)
             push_status=$?
