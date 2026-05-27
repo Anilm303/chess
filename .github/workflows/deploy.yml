@@ -37,7 +37,7 @@ jobs:
       - name: Build Flutter web
         run: |
           flutter build web --release \
-            --web-renderer html \
+            --dart-define=FLUTTER_WEB_USE_SKIA=false \
             --dart-define=API_BASE_URL=${{ env.API_BASE_URL }} \
             --dart-define=SOCKET_BASE_URL=${{ env.SOCKET_BASE_URL }}
 
@@ -99,6 +99,10 @@ jobs:
             rm -rf hf-space/web
             mkdir -p hf-space/web
             rsync -a --delete --exclude='.last_build_id' "${build_dir}"/ hf-space/web/
+
+            # HF Space pre-receive blocks wasm binaries; remove any accidental wasm artifacts.
+            find hf-space/web -type f \( -name '*.wasm' -o -name '*.wasm.map' \) -delete
+            rm -rf hf-space/web/canvaskit
 
             # Keep Docker runtime files in repo root for HF Space build.
             cp "${workspace_root}/Dockerfile" hf-space/Dockerfile
