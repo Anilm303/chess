@@ -85,7 +85,7 @@ jobs:
 
             cd "${workspace_root}"
 
-            preserved_root_files=(.gitignore README.md .nojekyll)
+            preserved_root_files=(.gitignore .nojekyll)
             for preserved_file in "${preserved_root_files[@]}"; do
               if [ -f "hf-space/${preserved_file}" ]; then
                 cp "hf-space/${preserved_file}" "${RUNNER_TEMP}/${preserved_file}.bak"
@@ -94,7 +94,7 @@ jobs:
 
             rm -f hf-space/.gitattributes
 
-            rsync -a --delete --exclude='.last_build_id' "${build_dir}"/ hf-space/
+            rsync -a --delete --exclude='.last_build_id' --exclude='README.md' "${build_dir}"/ hf-space/
 
             rm -f hf-space/.last_build_id
 
@@ -109,7 +109,7 @@ jobs:
             cd hf-space
             git remote set-url origin "${HF_REPO_URL}"
             git remote -v
-            git add -A
+            git add -A -- . ':!README.md'
 
             if git diff --cached --quiet; then
               echo "No web changes to deploy."
