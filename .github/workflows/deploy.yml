@@ -94,7 +94,14 @@ jobs:
 
             rm -f hf-space/.gitattributes
 
-            rsync -a --delete --exclude='.last_build_id' --exclude='README.md' "${build_dir}"/ hf-space/
+            # This Space runs in Docker mode, so serve Flutter from repo/web via nginx.
+            rm -rf hf-space/web
+            mkdir -p hf-space/web
+            rsync -a --delete --exclude='.last_build_id' "${build_dir}"/ hf-space/web/
+
+            # Keep Docker runtime files in repo root for HF Space build.
+            cp "${workspace_root}/Dockerfile" hf-space/Dockerfile
+            cp "${workspace_root}/nginx.conf" hf-space/nginx.conf
 
             rm -f hf-space/.last_build_id
 
