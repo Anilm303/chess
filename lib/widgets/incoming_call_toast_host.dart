@@ -3,8 +3,8 @@ import 'package:provider/provider.dart';
 
 import '../models/call_model.dart';
 import '../navigation/app_navigator.dart';
-import '../screens/incoming_call_screen.dart';
-import '../services/call_service.dart';
+import '../features/calls/presentation/screens/incoming_call_screen.dart';
+import '../features/calls/data/services/call_service.dart';
 import 'incoming_call_toast.dart';
 
 class IncomingCallToastHost extends StatefulWidget {

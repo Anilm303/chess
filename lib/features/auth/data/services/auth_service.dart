@@ -1,0 +1,286 @@
+import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../../../../config/backend_config.dart';
+import '../../../../models/user_model.dart';
+import '../../../../services/api_service.dart';
+
+class AuthService extends ChangeNotifier {
+  User? _currentUser;
+  String? _accessToken;
+  String? _refreshToken;
+  bool _isLoading = false;
+  String? _error;
+
+  User? get currentUser => _currentUser;
+  String? get accessToken => _accessToken;
+  String? get refreshToken => _refreshToken;
+  bool get isLoading => _isLoading;
+  String? get error => _error;
+  bool get isAuthenticated => _accessToken != null && _currentUser != null;
+
+  AuthService() {
+    _initializeAsync();
+  }
+
+  void _initializeAsync() {
+    _loadStoredToken();
+  }
+
+  Future<void> _loadStoredToken() async {
+    try {
+      if (BackendConfig.needsUserConfiguredBaseUrl) {
+        notifyListeners();
+        return;
+      }
+
+      final prefs = await SharedPreferences.getInstance();
+      _accessToken = prefs.getString('access_token');
+      _refreshToken = prefs.getString('refresh_token');
+
+      if (_accessToken != null) {
+        try {
+          final response = await ApiService.validateToken(_accessToken!);
+          if (response.success && response.user != null) {
+            _currentUser = response.user;
+          } else {
+            final refreshed = await _refreshIfPossible();
+            if (!refreshed) {
+              await _clearToken();
+            }
+          }
+        } catch (e) {
+          if (kDebugMode) {
+            print('Backend unavailable during token validation: $e');
+          }
+          await _refreshIfPossible();
+        }
+      }
+      notifyListeners();
+    } catch (e) {
+      if (kDebugMode) print('Error loading stored token: $e');
+    }
+  }
+
+  Future<void> _clearToken() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('access_token');
+      await prefs.remove('refresh_token');
+    } catch (e) {
+      if (kDebugMode) print('Error clearing token: $e');
+    }
+    _currentUser = null;
+    _accessToken = null;
+    _refreshToken = null;
+    _error = null;
+  }
+
+  Future<void> _saveToken(String token) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('access_token', token);
+    } catch (e) {
+      if (kDebugMode) print('Error saving token: $e');
+    }
+  }
+
+  Future<void> _saveRefreshToken(String token) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('refresh_token', token);
+    } catch (e) {
+      if (kDebugMode) print('Error saving refresh token: $e');
+    }
+  }
+
+  Future<bool> _refreshIfPossible() async {
+    if (_refreshToken == null || _refreshToken!.isEmpty) {
+      return false;
+    }
+
+    try {
+      final response = await ApiService.refreshAccessToken(_refreshToken!);
+      if (response.success && response.accessToken != null) {
+        _accessToken = response.accessToken;
+        if (response.user != null) {
+          _currentUser = response.user;
+        }
+        await _saveToken(_accessToken!);
+        if (response.refreshToken != null) {
+          _refreshToken = response.refreshToken;
+          await _saveRefreshToken(_refreshToken!);
+        }
+        return true;
+      }
+    } catch (e) {
+      if (kDebugMode) print('Refresh failed: $e');
+    }
+
+    return false;
+  }
+
+  Future<bool> register({
+    required String username,
+    required String email,
+    required String firstName,
+    required String lastName,
+    required String password,
+  }) async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      final response = await ApiService.register(
+        username: username,
+        email: email,
+        firstName: firstName,
+        lastName: lastName,
+        password: password,
+      );
+
+      if (response.success &&
+          response.accessToken != null &&
+          response.user != null) {
+        _accessToken = response.accessToken;
+        _refreshToken = response.refreshToken;
+        _currentUser = response.user;
+        await _saveToken(_accessToken!);
+        if (_refreshToken != null) {
+          await _saveRefreshToken(_refreshToken!);
+        }
+        _isLoading = false;
+        notifyListeners();
+        return true;
+      } else {
+        _error = response.message;
+        _isLoading = false;
+        notifyListeners();
+        return false;
+      }
+    } catch (e) {
+      _error = 'Registration failed: $e';
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    }
+  }
+
+  Future<bool> login({
+    required String username,
+    required String password,
+  }) async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      final response = await ApiService.login(
+        username: username,
+        password: password,
+      );
+
+      if (response.success &&
+          response.accessToken != null &&
+          response.user != null) {
+        _accessToken = response.accessToken;
+        _refreshToken = response.refreshToken;
+        _currentUser = response.user;
+        await _saveToken(_accessToken!);
+        if (_refreshToken != null) {
+          await _saveRefreshToken(_refreshToken!);
+        }
+        _isLoading = false;
+        notifyListeners();
+        return true;
+      } else {
+        _error = response.message;
+        _isLoading = false;
+        notifyListeners();
+        return false;
+      }
+    } catch (e) {
+      _error = 'Login failed: $e';
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    }
+  }
+
+  Future<void> logout() async {
+    try {
+      if (_accessToken != null) {
+        try {
+          await ApiService.logout(_accessToken!, refreshToken: _refreshToken);
+        } catch (e) {
+          if (kDebugMode) print('Error calling logout endpoint: $e');
+        }
+      }
+
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('access_token');
+      await prefs.remove('refresh_token');
+    } catch (e) {
+      if (kDebugMode) print('Error clearing token: $e');
+    }
+
+    _currentUser = null;
+    _accessToken = null;
+    _refreshToken = null;
+    _error = null;
+    notifyListeners();
+  }
+
+  void clearError() {
+    _error = null;
+    notifyListeners();
+  }
+
+  Future<Map<String, dynamic>> forgotPassword({required String email}) async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      final resp = await ApiService.forgotPassword(email: email);
+      _isLoading = false;
+      notifyListeners();
+      return resp;
+    } catch (e) {
+      _isLoading = false;
+      _error = 'Forgot password request failed: $e';
+      notifyListeners();
+      return {
+        'statusCode': 500,
+        'body': {'message': _error},
+      };
+    }
+  }
+
+  Future<Map<String, dynamic>> resetPassword({
+    required String token,
+    required String newPassword,
+  }) async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      final resp = await ApiService.resetPassword(
+        token: token,
+        newPassword: newPassword,
+      );
+      _isLoading = false;
+      notifyListeners();
+      return resp;
+    } catch (e) {
+      _isLoading = false;
+      _error = 'Reset password failed: $e';
+      notifyListeners();
+      return {
+        'statusCode': 500,
+        'body': {'message': _error},
+      };
+    }
+  }
+}

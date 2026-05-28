@@ -47,6 +47,17 @@ class ApiService {
     final body = response.body.trim();
     if (body.isEmpty) return fallback;
 
+    final lowerBody = body.toLowerCase();
+    if (lowerBody.startsWith('<!doctype html>') ||
+        lowerBody.contains('<html')) {
+      if (lowerBody.contains('psycopg2.operationalerror') ||
+          lowerBody.contains('database') ||
+          lowerBody.contains('host name')) {
+        return 'Backend database error. Check DATABASE_URL and PostgreSQL connectivity.';
+      }
+      return fallback;
+    }
+
     final snippet = body.replaceAll(RegExp(r'\s+'), ' ');
     if (snippet.length <= 180) return snippet;
     return '${snippet.substring(0, 180)}...';
@@ -128,9 +139,12 @@ class ApiService {
       };
       if (kDebugMode) print('📤 Body: $body');
 
-      final response = await _post('/auth/register', {
-        'Content-Type': 'application/json',
-      }, body);
+      final response = await _post(
+          '/auth/register',
+          {
+            'Content-Type': 'application/json',
+          },
+          body);
 
       if (kDebugMode) {
         print('📥 Response Status: ${response.statusCode}');
@@ -178,9 +192,12 @@ class ApiService {
       final body = {'username': username, 'password': password};
       if (kDebugMode) print('📤 Body: $body');
 
-      final response = await _post('/auth/login', {
-        'Content-Type': 'application/json',
-      }, body);
+      final response = await _post(
+          '/auth/login',
+          {
+            'Content-Type': 'application/json',
+          },
+          body);
 
       if (kDebugMode) {
         print('📥 Response Status: ${response.statusCode}');
@@ -252,10 +269,13 @@ class ApiService {
   static Future<AuthResponse> refreshAccessToken(String refreshToken) async {
     try {
       if (kDebugMode) print('♻️ Refreshing access token');
-      final response = await _post('/auth/refresh', {
-        'Authorization': 'Bearer $refreshToken',
-        'Content-Type': 'application/json',
-      }, null);
+      final response = await _post(
+          '/auth/refresh',
+          {
+            'Authorization': 'Bearer $refreshToken',
+            'Content-Type': 'application/json',
+          },
+          null);
 
       if (kDebugMode) {
         print('📥 Refresh Status: ${response.statusCode}');
@@ -331,9 +351,12 @@ class ApiService {
   }) async {
     try {
       final body = {'email': email};
-      final response = await _post('/auth/forgot-password', {
-        'Content-Type': 'application/json',
-      }, body);
+      final response = await _post(
+          '/auth/forgot-password',
+          {
+            'Content-Type': 'application/json',
+          },
+          body);
 
       final decoded = _decodeJsonMap(response.body) ?? {};
       return {'statusCode': response.statusCode, 'body': decoded};
@@ -350,9 +373,12 @@ class ApiService {
   }) async {
     try {
       final body = {'token': token, 'new_password': newPassword};
-      final response = await _post('/auth/reset-password', {
-        'Content-Type': 'application/json',
-      }, body);
+      final response = await _post(
+          '/auth/reset-password',
+          {
+            'Content-Type': 'application/json',
+          },
+          body);
 
       final decoded = _decodeJsonMap(response.body) ?? {};
       return {'statusCode': response.statusCode, 'body': decoded};

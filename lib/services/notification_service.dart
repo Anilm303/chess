@@ -5,7 +5,7 @@ import 'package:http/http.dart' as http;
 import '../models/notification_model.dart' as notif_model;
 import 'api_service.dart';
 import 'auth_service.dart';
-import 'call_service.dart';
+import '../features/calls/data/services/call_service.dart';
 
 class NotificationService extends ChangeNotifier {
   final AuthService authService;
@@ -112,15 +112,13 @@ class NotificationService extends ChangeNotifier {
 
     try {
       final url = '${ApiService.baseUrl}/friends/requests';
-      final resp = await http
-          .get(
-            Uri.parse(url),
-            headers: {
-              'Authorization': 'Bearer $token',
-              'Content-Type': 'application/json',
-            },
-          )
-          .timeout(ApiService.timeout);
+      final resp = await http.get(
+        Uri.parse(url),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      ).timeout(ApiService.timeout);
 
       if (resp.statusCode != 200) return;
 

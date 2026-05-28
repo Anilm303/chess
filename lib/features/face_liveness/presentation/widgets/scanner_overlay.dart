@@ -12,7 +12,7 @@ class ScannerOverlay extends StatelessWidget {
           final radius = size.shortestSide * 0.34;
           return Stack(
             children: [
-              Container(color: Colors.black.withOpacity(0.35)),
+              Container(color: Colors.black.withAlpha(89)),
               Center(
                 child: Container(
                   width: radius * 2,

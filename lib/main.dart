@@ -5,8 +5,8 @@ import 'package:provider/provider.dart';
 import 'theme/colors.dart';
 import 'services/auth_service.dart';
 import 'services/api_service.dart';
-import 'services/call_service.dart';
-import 'services/message_service.dart';
+import 'features/calls/data/services/call_service.dart';
+import 'features/chat/data/services/message_service.dart';
 import 'services/friend_service.dart';
 import 'services/note_service.dart';
 import 'services/story_service.dart';
@@ -16,16 +16,16 @@ import 'services/fcm_service.dart';
 import 'services/sound_service.dart';
 import 'services/device_bootstrap.dart';
 import 'providers/game_provider.dart';
-import 'screens/ludo_home_screen.dart';
+import 'features/ludo/presentation/screens/ludo_home_screen.dart';
 import 'package:flutter_callkit_incoming/flutter_callkit_incoming.dart';
 import 'package:flutter_callkit_incoming/entities/entities.dart';
-import 'screens/login_screen.dart';
-import 'screens/register_screen.dart';
-import 'screens/call_screen.dart';
-import 'screens/chess_board_screen.dart';
-import 'screens/notifications_screen.dart';
-import 'screens/forgot_password_screen.dart';
-import 'screens/reset_password_screen.dart';
+import 'features/auth/presentation/screens/login_screen.dart';
+import 'features/auth/presentation/screens/register_screen.dart';
+import 'features/calls/presentation/screens/call_screen.dart';
+import 'features/chess/presentation/screens/chess_board_screen.dart';
+import 'features/notifications/presentation/screens/notifications_screen.dart';
+import 'features/auth/presentation/screens/forgot_password_screen.dart';
+import 'features/auth/presentation/screens/reset_password_screen.dart';
 import 'navigation/app_navigator.dart';
 import 'widgets/incoming_call_toast_host.dart';
 
@@ -291,8 +291,8 @@ class _CallBootstrapHostState extends State<_CallBootstrapHost> {
     final baseUrl = ApiService.baseUrl;
     final displayName =
         authService.currentUser?.fullName.trim().isNotEmpty == true
-        ? authService.currentUser!.fullName.trim()
-        : username;
+            ? authService.currentUser!.fullName.trim()
+            : username;
 
     if (_connectedFor != username || _lastBaseUrl != baseUrl) {
       _connectedFor = username;

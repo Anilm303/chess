@@ -1,0 +1,379 @@
+﻿Analyzing chess-main...                                         
+
+warning - Unused import: 'dart:io' - lib\config\backend_config.dart:1:8 - unused_import
+   info - Don't use 'BuildContext's across async gaps - lib\features\auth\presentation\screens\forgot_password_screen.dart:39:11 - use_build_context_synchronously
+   info - Don't use 'BuildContext's across async gaps - lib\features\auth\presentation\screens\forgot_password_screen.dart:42:30 - use_build_context_synchronously
+   info - Don't use 'BuildContext's across async gaps - lib\features\auth\presentation\screens\forgot_password_screen.dart:48:20 - use_build_context_synchronously
+   info - Don't use 'BuildContext's across async gaps - lib\features\auth\presentation\screens\forgot_password_screen.dart:52:9 - use_build_context_synchronously
+   info - Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check - lib\features\auth\presentation\screens\login_screen.dart:43:20 - use_build_context_synchronously
+   info - Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check - lib\features\auth\presentation\screens\login_screen.dart:45:28 - use_build_context_synchronously
+warning - The declaration '_maybePromptForBackendUrl' isn't referenced - lib\features\auth\presentation\screens\login_screen.dart:51:16 - unused_element
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\auth\presentation\screens\login_screen.dart:205:40 - deprecated_member_use
+   info - Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check - lib\features\auth\presentation\screens\register_screen.dart:73:20 - use_build_context_synchronously
+   info - Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check - lib\features\auth\presentation\screens\register_screen.dart:75:28 - use_build_context_synchronously
+   info - Don't use 'BuildContext's across async gaps - lib\features\auth\presentation\screens\reset_password_screen.dart:71:28 - use_build_context_synchronously
+   info - Don't use 'BuildContext's across async gaps - lib\features\auth\presentation\screens\reset_password_screen.dart:76:20 - use_build_context_synchronously
+   info - Don't use 'BuildContext's across async gaps - lib\features\auth\presentation\screens\reset_password_screen.dart:80:9 - use_build_context_synchronously
+  error - Target of URI doesn't exist: '../../../data/services/call_service.dart' - lib\features\calls\presentation\screens\call_screen.dart:7:8 - uri_does_not_exist
+  error - The name 'CallService' isn't a type, so it can't be used as a type argument - lib\features\calls\presentation\screens\call_screen.dart:28:21 - non_type_as_type_argument
+  error - The property 'status' can't be unconditionally accessed because the receiver can be 'null' - lib\features\calls\presentation\screens\call_screen.dart:30:25 - unchecked_use_of_nullable_value
+  error - The property 'status' can't be unconditionally accessed because the receiver can be 'null' - lib\features\calls\presentation\screens\call_screen.dart:31:25 - unchecked_use_of_nullable_value
+  error - The property 'status' can't be unconditionally accessed because the receiver can be 'null' - lib\features\calls\presentation\screens\call_screen.dart:32:25 - unchecked_use_of_nullable_value
+  error - The property 'isVideoCall' can't be unconditionally accessed because the receiver can be 'null' - lib\features\calls\presentation\screens\call_screen.dart:40:37 - unchecked_use_of_nullable_value
+  error - The property 'remoteRendererEntries' can't be unconditionally accessed because the receiver can be 'null' - lib\features\calls\presentation\screens\call_screen.dart:41:45 - unchecked_use_of_nullable_value
+  error - The property 'participants' can't be unconditionally accessed because the receiver can be 'null' - lib\features\calls\presentation\screens\call_screen.dart:42:42 - unchecked_use_of_nullable_value
+   info - 'WillPopScope' is deprecated and shouldn't be used. Use PopScope instead. The Android predictive back feature will not work with WillPopScope. This feature was deprecated after v3.12.0-1.0.pre - lib\features\calls\presentation\screens\call_screen.dart:44:16 - deprecated_member_use
+  error - The property 'isConnected' can't be unconditionally accessed because the receiver can be 'null' - lib\features\calls\presentation\screens\call_screen.dart:46:29 - unchecked_use_of_nullable_value
+  error - The method 'endCall' can't be unconditionally invoked because the receiver can be 'null' - lib\features\calls\presentation\screens\call_screen.dart:47:33 - unchecked_use_of_nullable_value
+  error - The property 'videoEnabled' can't be unconditionally accessed because the receiver can be 'null' - lib\features\calls\presentation\screens\call_screen.dart:59:44 - unchecked_use_of_nullable_value
+  error - Undefined class 'CallService' - lib\features\calls\presentation\screens\call_screen.dart:109:5 - undefined_class
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\calls\presentation\screens\call_screen.dart:155:37 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\calls\presentation\screens\call_screen.dart:164:39 - deprecated_member_use
+   info - Use 'const' with the constructor to improve performance - lib\features\calls\presentation\screens\call_screen.dart:189:19 - prefer_const_constructors
+  error - Undefined class 'CallService' - lib\features\calls\presentation\screens\call_screen.dart:206:29 - undefined_class
+  error - Undefined class 'CallService' - lib\features\calls\presentation\screens\call_screen.dart:231:5 - undefined_class
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\calls\presentation\screens\call_screen.dart:259:35 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\calls\presentation\screens\call_screen.dart:268:37 - deprecated_member_use
+  error - Undefined class 'CallService' - lib\features\calls\presentation\screens\call_screen.dart:279:51 - undefined_class
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\calls\presentation\screens\call_screen.dart:302:38 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\calls\presentation\screens\call_screen.dart:313:40 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\calls\presentation\screens\call_screen.dart:330:41 - deprecated_member_use
+   info - Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check - lib\features\calls\presentation\screens\call_screen.dart:341:38 - use_build_context_synchronously
+warning - Unused import: '../../../../navigation/app_navigator.dart' - lib\features\calls\presentation\screens\incoming_call_screen.dart:6:8 - unused_import
+  error - Target of URI doesn't exist: '../../../data/services/call_service.dart' - lib\features\calls\presentation\screens\incoming_call_screen.dart:7:8 - uri_does_not_exist
+  error - The name 'CallService' isn't a type, so it can't be used as a type argument - lib\features\calls\presentation\screens\incoming_call_screen.dart:34:40 - non_type_as_type_argument
+  error - The name 'CallService' isn't a type, so it can't be used as a type argument - lib\features\calls\presentation\screens\incoming_call_screen.dart:48:21 - non_type_as_type_argument
+  error - The property 'incomingCall' can't be unconditionally accessed because the receiver can be 'null' - lib\features\calls\presentation\screens\incoming_call_screen.dart:50:34 - unchecked_use_of_nullable_value
+  error - The property 'status' can't be unconditionally accessed because the receiver can be 'null' - lib\features\calls\presentation\screens\incoming_call_screen.dart:51:25 - unchecked_use_of_nullable_value
+  error - The property 'status' can't be unconditionally accessed because the receiver can be 'null' - lib\features\calls\presentation\screens\incoming_call_screen.dart:52:25 - unchecked_use_of_nullable_value
+  error - The property 'status' can't be unconditionally accessed because the receiver can be 'null' - lib\features\calls\presentation\screens\incoming_call_screen.dart:53:25 - unchecked_use_of_nullable_value
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\calls\presentation\screens\incoming_call_screen.dart:126:45 - deprecated_member_use
+  error - The method 'rejectIncomingCall' can't be unconditionally invoked because the receiver can be 'null' - lib\features\calls\presentation\screens\incoming_call_screen.dart:139:45 - unchecked_use_of_nullable_value
+   info - Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check - lib\features\calls\presentation\screens\incoming_call_screen.dart:141:42 - use_build_context_synchronously
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\calls\presentation\screens\incoming_call_screen.dart:152:51 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\calls\presentation\screens\incoming_call_screen.dart:155:55 - deprecated_member_use
+  error - The method 'acceptIncomingCall' can't be unconditionally invoked because the receiver can be 'null' - lib\features\calls\presentation\screens\incoming_call_screen.dart:182:47 - unchecked_use_of_nullable_value
+   info - Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check - lib\features\calls\presentation\screens\incoming_call_screen.dart:184:44 - use_build_context_synchronously
+   info - Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check - lib\features\calls\presentation\screens\incoming_call_screen.dart:193:52 - use_build_context_synchronously
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\calls\presentation\screens\incoming_call_screen.dart:207:53 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\calls\presentation\screens\incoming_call_screen.dart:210:57 - deprecated_member_use
+   info - Use 'const' with the constructor to improve performance - lib\features\calls\presentation\screens\incoming_call_screen.dart:258:19 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\features\chat\data\services\message_service.dart:39:17 - prefer_const_constructors
+warning - The '!' will have no effect because the receiver can't be null - lib\features\chat\data\services\message_service.dart:129:27 - unnecessary_non_null_assertion
+warning - The '!' will have no effect because the receiver can't be null - lib\features\chat\data\services\message_service.dart:131:29 - unnecessary_non_null_assertion
+   info - Use 'const' with the constructor to improve performance - lib\features\chat\data\services\message_service.dart:430:44 - prefer_const_constructors
+warning - The operand can't be 'null', so the condition is always 'true' - lib\features\chat\data\services\message_service.dart:581:53 - unnecessary_null_comparison
+   info - Don't invoke 'print' in production code - lib\features\chat\data\services\message_service.dart:921:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\features\chat\data\services\message_service.dart:922:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\features\chat\data\services\message_service.dart:923:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\features\chat\data\services\message_service.dart:924:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\features\chat\data\services\message_service.dart:937:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\features\chat\data\services\message_service.dart:938:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\features\chat\data\services\message_service.dart:941:9 - avoid_print
+   info - Use interpolation to compose strings and values - lib\features\chat\data\services\message_service.dart:959:96 - prefer_interpolation_to_compose_strings
+   info - Don't invoke 'print' in production code - lib\features\chat\data\services\message_service.dart:966:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\features\chat\data\services\message_service.dart:1500:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\features\chat\data\services\message_service.dart:1501:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\features\chat\data\services\message_service.dart:1502:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\features\chat\data\services\message_service.dart:1503:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\features\chat\data\services\message_service.dart:1517:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\features\chat\data\services\message_service.dart:1523:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\features\chat\data\services\message_service.dart:1530:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\features\chat\data\services\message_service.dart:1531:7 - avoid_print
+   info - Use interpolation to compose strings and values - lib\features\chat\data\services\message_service.dart:1532:59 - prefer_interpolation_to_compose_strings
+   info - Don't invoke 'print' in production code - lib\features\chat\data\services\message_service.dart:1538:11 - avoid_print
+   info - Don't invoke 'print' in production code - lib\features\chat\data\services\message_service.dart:1551:11 - avoid_print
+   info - Don't invoke 'print' in production code - lib\features\chat\data\services\message_service.dart:1567:9 - avoid_print
+   info - Don't invoke 'print' in production code - lib\features\chat\data\services\message_service.dart:1573:7 - avoid_print
+warning - The '!' will have no effect because the receiver can't be null - lib\features\chat\data\services\message_service.dart:1583:23 - unnecessary_non_null_assertion
+warning - The '!' will have no effect because the receiver can't be null - lib\features\chat\data\services\message_service.dart:1588:25 - unnecessary_non_null_assertion
+warning - The '!' will have no effect because the receiver can't be null - lib\features\chat\data\services\message_service.dart:1589:26 - unnecessary_non_null_assertion
+warning - The declaration '_startPolling' isn't referenced - lib\features\chat\data\services\message_service.dart:1644:8 - unused_element
+   info - The private field _showEmojiPicker could be 'final' - lib\features\chat\presentation\screens\chat_screen.dart:40:8 - prefer_final_fields
+   info - Don't use 'BuildContext's across async gaps - lib\features\chat\presentation\screens\chat_screen.dart:496:30 - use_build_context_synchronously
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\chat\presentation\screens\chat_screen.dart:550:62 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\chat\presentation\screens\chat_screen.dart:577:55 - deprecated_member_use
+   info - Use 'const' with the constructor to improve performance - lib\features\chat\presentation\screens\chat_screen.dart:652:42 - prefer_const_constructors
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\chat\presentation\screens\chat_screen.dart:717:46 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\chat\presentation\screens\chat_screen.dart:718:46 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\chat\presentation\screens\chat_screen.dart:770:35 - deprecated_member_use
+   info - Use 'const' with the constructor to improve performance - lib\features\chat\presentation\screens\chat_screen.dart:805:29 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\features\chat\presentation\screens\chat_screen.dart:807:38 - prefer_const_constructors
+   info - Use 'const' literals as arguments to constructors of '@immutable' classes - lib\features\chat\presentation\screens\chat_screen.dart:809:43 - prefer_const_literals_to_create_immutables
+   info - Use 'const' with the constructor to improve performance - lib\features\chat\presentation\screens\chat_screen.dart:815:35 - prefer_const_constructors
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\chat\presentation\screens\chat_screen.dart:862:43 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\chat\presentation\screens\chat_screen.dart:877:35 - deprecated_member_use
+   info - An uninitialized field should have an explicit type annotation - lib\features\chat\presentation\screens\chat_screen.dart:884:1 - prefer_typing_uninitialized_variables
+  error - Expected to find ';' - lib\features\chat\presentation\screens\chat_screen.dart:884:1 - expected_token
+  error - Variables must be declared using the keywords 'const', 'final', 'var' or a type name - lib\features\chat\presentation\screens\chat_screen.dart:884:1 - missing_const_final_var_or_type
+  error - Expected a class member - lib\features\chat\presentation\screens\chat_screen.dart:884:8 - expected_class_member
+  error - Expected a class member - lib\features\chat\presentation\screens\chat_screen.dart:884:46 - expected_class_member
+  error - Expected to find '}' - lib\features\chat\presentation\screens\chat_screen.dart:885:1 - expected_token
+warning - Unused import: '../../../../models/message_model.dart' - lib\features\chat\presentation\screens\messaging_screen.dart:3:8 - unused_import
+warning - Unused import: '../../../../models/note_model.dart' - lib\features\chat\presentation\screens\messaging_screen.dart:4:8 - unused_import
+warning - Unused import: '../../../../models/story_model.dart' - lib\features\chat\presentation\screens\messaging_screen.dart:5:8 - unused_import
+warning - Unused import: '../../../../screens/add_note_screen.dart' - lib\features\chat\presentation\screens\messaging_screen.dart:6:8 - unused_import
+warning - Unused import: '../../../../screens/add_story_screen.dart' - lib\features\chat\presentation\screens\messaging_screen.dart:7:8 - unused_import
+warning - Unused import: '../../../../screens/call_screen.dart' - lib\features\chat\presentation\screens\messaging_screen.dart:8:8 - unused_import
+warning - Unused import: 'chat_screen.dart' - lib\features\chat\presentation\screens\messaging_screen.dart:9:8 - unused_import
+warning - Unused import: '../../../../screens/menu_screen.dart' - lib\features\chat\presentation\screens\messaging_screen.dart:10:8 - unused_import
+warning - Unused import: '../../../../screens/notifications_screen.dart' - lib\features\chat\presentation\screens\messaging_screen.dart:11:8 - unused_import
+warning - Unused import: '../../../../screens/note_viewer_screen.dart' - lib\features\chat\presentation\screens\messaging_screen.dart:12:8 - unused_import
+warning - Unused import: '../../../../screens/profile_screen.dart' - lib\features\chat\presentation\screens\messaging_screen.dart:13:8 - unused_import
+warning - Unused import: '../../../../screens/story_viewer_screen.dart' - lib\features\chat\presentation\screens\messaging_screen.dart:14:8 - unused_import
+warning - Unused import: '../../../../services/auth_service.dart' - lib\features\chat\presentation\screens\messaging_screen.dart:15:8 - unused_import
+warning - Unused import: '../../../../features/calls/data/services/call_service.dart' - lib\features\chat\presentation\screens\messaging_screen.dart:16:8 - unused_import
+warning - Unused import: '../../data/services/message_service.dart' - lib\features\chat\presentation\screens\messaging_screen.dart:17:8 - unused_import
+warning - Unused import: '../../../../services/note_service.dart' - lib\features\chat\presentation\screens\messaging_screen.dart:18:8 - unused_import
+warning - Unused import: '../../../../services/notification_service.dart' - lib\features\chat\presentation\screens\messaging_screen.dart:19:8 - unused_import
+warning - Unused import: '../../../../services/story_service.dart' - lib\features\chat\presentation\screens\messaging_screen.dart:20:8 - unused_import
+warning - Unused import: '../../../../services/friend_service.dart' - lib\features\chat\presentation\screens\messaging_screen.dart:21:8 - unused_import
+warning - Unused import: '../../../../services/theme_service.dart' - lib\features\chat\presentation\screens\messaging_screen.dart:22:8 - unused_import
+warning - Unused import: '../../../../theme/colors.dart' - lib\features\chat\presentation\screens\messaging_screen.dart:23:8 - unused_import
+warning - The value of the local variable 'isDark' isn't used - lib\features\chess\presentation\screens\chess_board_screen.dart:103:11 - unused_local_variable
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\chess\presentation\screens\chess_board_screen.dart:171:62 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\chess\presentation\screens\chess_board_screen.dart:239:49 - deprecated_member_use
+   info - Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check - lib\features\chess\presentation\screens\chess_board_screen.dart:271:28 - use_build_context_synchronously
+warning - The value of the local variable 'darkSquareColor' isn't used - lib\features\chess\presentation\screens\chess_board_screen.dart:313:27 - unused_local_variable
+warning - The value of the local variable 'lightSquareColor' isn't used - lib\features\chess\presentation\screens\chess_board_screen.dart:320:27 - unused_local_variable
+  error - Directives must appear before any declarations - lib\features\chess\presentation\screens\chess_board_screen.dart:404:1 - directive_after_declaration
+warning - Unused import: '../../ml/input_image_converter.dart' - lib\features\face_liveness\presentation\screens\face_liveness_screen.dart:7:8 - unused_import
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\face_liveness\presentation\widgets\scanner_overlay.dart:15:45 - deprecated_member_use
+  error - Directives must appear before any declarations - lib\features\notifications\presentation\screens\notifications_screen.dart:134:2 - directive_after_declaration
+warning - The '!' will have no effect because the receiver can't be null - lib\features\profile\presentation\screens\profile_screen.dart:156:49 - unnecessary_non_null_assertion
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\profile\presentation\screens\profile_screen.dart:187:38 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\profile\presentation\screens\profile_screen.dart:196:63 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\profile\presentation\screens\profile_screen.dart:211:40 - deprecated_member_use
+warning - The '!' will have no effect because the receiver can't be null - lib\features\profile\presentation\screens\profile_screen.dart:393:36 - unnecessary_non_null_assertion
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\profile\presentation\screens\profile_screen.dart:394:61 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\profile\presentation\screens\profile_screen.dart:395:43 - deprecated_member_use
+  error - The method '_formatLastSeen' isn't defined for the type '_ProfileScreenState' - lib\features\profile\presentation\screens\profile_screen.dart:429:49 - undefined_method
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\profile\presentation\screens\profile_screen.dart:449:66 - deprecated_member_use
+   info - Use 'const' with the constructor to improve performance - lib\features\profile\presentation\screens\profile_screen.dart:462:34 - prefer_const_constructors
+  error - Expected to find ';' - lib\features\profile\presentation\screens\profile_screen.dart:464:43 - expected_token
+  error - Expected to find ')' - lib\features\profile\presentation\screens\profile_screen.dart:465:1 - expected_token
+  error - Expected to find ']' - lib\features\profile\presentation\screens\profile_screen.dart:465:1 - expected_token
+  error - Expected to find '}' - lib\features\profile\presentation\screens\profile_screen.dart:465:1 - expected_token
+warning - Unused import: '../../../../theme/colors.dart' - lib\features\settings\presentation\screens\settings_screen.dart:7:8 - unused_import
+warning - Unused import: '../../../../screens/profile_screen.dart' - lib\features\settings\presentation\screens\settings_screen.dart:8:8 - unused_import
+   info - The private field _activeStatus could be 'final' - lib\features\settings\presentation\screens\settings_screen.dart:18:8 - prefer_final_fields
+warning - The value of the field '_activeStatus' isn't used - lib\features\settings\presentation\screens\settings_screen.dart:18:8 - unused_field
+   info - The private field _chatHeads could be 'final' - lib\features\settings\presentation\screens\settings_screen.dart:19:8 - prefer_final_fields
+warning - The value of the field '_chatHeads' isn't used - lib\features\settings\presentation\screens\settings_screen.dart:19:8 - unused_field
+  error - The method '_ProfileHeader' isn't defined for the type '_SettingsScreenState' - lib\features\settings\presentation\screens\settings_screen.dart:47:11 - undefined_method
+warning - The declaration '_copyUsername' isn't referenced - lib\features\settings\presentation\screens\settings_screen.dart:55:16 - unused_element
+warning - The declaration '_openInfoPage' isn't referenced - lib\features\settings\presentation\screens\settings_screen.dart:63:8 - unused_element
+  error - The method '_InfoPage' isn't defined for the type '_SettingsScreenState' - lib\features\settings\presentation\screens\settings_screen.dart:70:25 - undefined_method
+warning - The declaration '_showReportDialog' isn't referenced - lib\features\settings\presentation\screens\settings_screen.dart:75:16 - unused_element
+warning - The declaration '_logout' isn't referenced - lib\features\settings\presentation\screens\settings_screen.dart:115:16 - unused_element
+   info - Don't use 'BuildContext's across async gaps - lib\features\settings\presentation\screens\settings_screen.dart:139:11 - use_build_context_synchronously
+warning - Unused import: 'dart:convert' - lib\features\stories\presentation\screens\stories_bar.dart:3:8 - unused_import
+warning - Unused import: '../../../../theme/colors.dart' - lib\features\stories\presentation\screens\stories_bar.dart:6:8 - unused_import
+warning - Unused import: '../../../../screens/note_viewer_screen.dart' - lib\features\stories\presentation\screens\stories_bar.dart:14:8 - unused_import
+warning - Unused import: '../../../../screens/add_note_screen.dart' - lib\features\stories\presentation\screens\stories_bar.dart:15:8 - unused_import
+warning - The receiver can't be 'null' because of short-circuiting, so the null-aware operator '?.' can't be used - lib\features\stories\presentation\screens\stories_bar.dart:58:46 - invalid_null_aware_operator
+  error - The method '_HighlightCircle' isn't defined for the type '_StoriesBarState' - lib\features\stories\presentation\screens\stories_bar.dart:79:17 - undefined_method
+  error - The method '_buildCurrentUserAvatar' isn't defined for the type '_StoriesBarState' - lib\features\stories\presentation\screens\stories_bar.dart:81:27 - undefined_method
+  error - The method '_HighlightCircle' isn't defined for the type '_StoriesBarState' - lib\features\stories\presentation\screens\stories_bar.dart:109:28 - undefined_method
+  error - The method '_buildCurrentUserAvatar' isn't defined for the type '_StoriesBarState' - lib\features\stories\presentation\screens\stories_bar.dart:113:31 - undefined_method
+warning - The declaration '_findUserNoteGroup' isn't referenced - lib\features\stories\presentation\screens\stories_bar.dart:149:14 - unused_element
+warning - The declaration '_openQuickNoteSheet' isn't referenced - lib\features\stories\presentation\screens\stories_bar.dart:167:16 - unused_element
+warning - Unused import: 'package:video_player/video_player.dart' - lib\features\stories\presentation\screens\story_viewer_screen.dart:4:8 - unused_import
+warning - Unused import: 'package:emoji_picker_flutter/emoji_picker_flutter.dart' - lib\features\stories\presentation\screens\story_viewer_screen.dart:5:8 - unused_import
+warning - Unused import: '../../../../theme/colors.dart' - lib\features\stories\presentation\screens\story_viewer_screen.dart:7:8 - unused_import
+warning - Unused import: '../../../../services/api_service.dart' - lib\features\stories\presentation\screens\story_viewer_screen.dart:11:8 - unused_import
+warning - Unused import: '../../../../screens/story_analytics_screen.dart' - lib\features\stories\presentation\screens\story_viewer_screen.dart:12:8 - unused_import
+warning - The declaration '_storyQuickReactions' isn't referenced - lib\features\stories\presentation\screens\story_viewer_screen.dart:14:7 - unused_element
+warning - The value of the field '_showEmojiPicker' isn't used - lib\features\stories\presentation\screens\story_viewer_screen.dart:32:8 - unused_field
+warning - The value of the field '_isSending' isn't used - lib\features\stories\presentation\screens\story_viewer_screen.dart:33:8 - unused_field
+warning - The value of the field '_chosenReaction' isn't used - lib\features\stories\presentation\screens\story_viewer_screen.dart:34:11 - unused_field
+warning - The declaration '_nextStory' isn't referenced - lib\features\stories\presentation\screens\story_viewer_screen.dart:66:8 - unused_element
+warning - The declaration '_previousStory' isn't referenced - lib\features\stories\presentation\screens\story_viewer_screen.dart:77:8 - unused_element
+warning - The declaration '_toggleReplyBox' isn't referenced - lib\features\stories\presentation\screens\story_viewer_screen.dart:86:8 - unused_element
+warning - The declaration '_sendReactionAsMessage' isn't referenced - lib\features\stories\presentation\screens\story_viewer_screen.dart:94:16 - unused_element
+   info - Use 'const' with the constructor to improve performance - lib\features\stories\presentation\screens\story_viewer_screen.dart:126:9 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\features\stories\presentation\screens\story_viewer_screen.dart:127:20 - prefer_const_constructors
+warning - The declaration '_sendReply' isn't referenced - lib\features\stories\presentation\screens\story_viewer_screen.dart:136:16 - unused_element
+warning - The value of the local variable 'isOwner' isn't used - lib\features\stories\presentation\screens\story_viewer_screen.dart:171:11 - unused_local_variable
+warning - The declaration '_buildUserAvatar' isn't referenced - lib\features\stories\presentation\screens\story_viewer_screen.dart:204:10 - unused_element
+warning - The declaration '_getTimeAgo' isn't referenced - lib\features\stories\presentation\screens\story_viewer_screen.dart:211:10 - unused_element
+  error - The getter 'type' isn't defined for the type 'Story' - lib\features\stories\presentation\screens\story_viewer_screen.dart:220:15 - undefined_getter
+  error - The getter 'content' isn't defined for the type 'Story' - lib\features\stories\presentation\screens\story_viewer_screen.dart:221:46 - undefined_getter
+   info - Use 'const' with the constructor to improve performance - lib\main.dart:73:14 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\main.dart:75:15 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\main.dart:76:17 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\main.dart:77:20 - prefer_const_constructors
+warning - Unused import: 'package:flutter/material.dart' - lib\models\ludo_models.dart:2:8 - unused_import
+   info - Statements in an if should be enclosed in a block - lib\providers\game_provider.dart:142:11 - curly_braces_in_flow_control_structures
+warning - The operand can't be 'null', so the condition is always 'true' - lib\providers\game_provider.dart:144:20 - unnecessary_null_comparison
+   info - Type could be non-nullable - lib\providers\game_provider.dart:247:19 - unnecessary_nullable_for_final_variable_declarations
+   info - Don't invoke 'print' in production code - lib\providers\game_provider.dart:364:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\providers\game_provider.dart:383:7 - avoid_print
+   info - Statements in an if should be enclosed in a block - lib\providers\game_provider.dart:403:7 - curly_braces_in_flow_control_structures
+warning - The operand can't be 'null', so the condition is always 'true' - lib\providers\game_provider.dart:444:18 - unnecessary_null_comparison
+   info - Don't invoke 'print' in production code - lib\providers\game_provider.dart:452:7 - avoid_print
+   info - Empty catch block - lib\providers\game_provider.dart:513:21 - empty_catches
+   info - The local variable '_prevCurrentPlayerId' starts with an underscore - lib\providers\game_provider.dart:530:21 - no_leading_underscores_for_local_identifiers
+warning - The receiver can't be 'null' because of short-circuiting, so the null-aware operator '?.' can't be used - lib\providers\game_provider.dart:531:37 - invalid_null_aware_operator
+   info - The local variable '_prevDice' starts with an underscore - lib\providers\game_provider.dart:532:17 - no_leading_underscores_for_local_identifiers
+warning - The receiver can't be 'null' because of short-circuiting, so the null-aware operator '?.' can't be used - lib\providers\game_provider.dart:532:55 - invalid_null_aware_operator
+warning - The '!' will have no effect because the receiver can't be null - lib\providers\game_provider.dart:572:42 - unnecessary_non_null_assertion
+   info - Don't invoke 'print' in production code - lib\providers\game_provider.dart:698:7 - avoid_print
+   info - The import of 'dart:typed_data' is unnecessary because all of the used elements are also provided by the import of 'package:flutter/foundation.dart' - lib\screens\add_story_screen.dart:4:8 - unnecessary_import
+   info - Don't invoke 'print' in production code - lib\screens\add_story_screen.dart:83:9 - avoid_print
+   info - Don't invoke 'print' in production code - lib\screens\add_story_screen.dart:91:9 - avoid_print
+   info - Don't use 'BuildContext's across async gaps - lib\screens\add_story_screen.dart:95:32 - use_build_context_synchronously
+   info - Don't invoke 'print' in production code - lib\screens\add_story_screen.dart:111:11 - avoid_print
+   info - Don't invoke 'print' in production code - lib\screens\add_story_screen.dart:121:11 - avoid_print
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\add_story_screen.dart:191:60 - deprecated_member_use
+   info - Use 'const' with the constructor to improve performance - lib\screens\add_story_screen.dart:215:29 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\screens\add_story_screen.dart:269:14 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\screens\add_story_screen.dart:329:19 - prefer_const_constructors
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\add_story_screen.dart:362:50 - deprecated_member_use
+   info - Don't use 'BuildContext's across async gaps - lib\screens\friends_screen.dart:56:42 - use_build_context_synchronously
+   info - Don't use 'BuildContext's across async gaps - lib\screens\friends_screen.dart:101:54 - use_build_context_synchronously
+   info - Don't use 'BuildContext's across async gaps - lib\screens\friends_screen.dart:116:54 - use_build_context_synchronously
+   info - Parameter 'key' could be a super parameter - lib\screens\ludo_game_screen.dart:15:9 - use_super_parameters
+   info - The private field _debugOverlay could be 'final' - lib\screens\ludo_game_screen.dart:34:8 - prefer_final_fields
+warning - The value of the local variable 'val' isn't used - lib\screens\ludo_game_screen.dart:99:19 - unused_local_variable
+   info - Empty catch block - lib\screens\ludo_game_screen.dart:103:19 - empty_catches
+   info - Empty catch block - lib\screens\ludo_game_screen.dart:118:23 - empty_catches
+   info - Empty catch block - lib\screens\ludo_game_screen.dart:170:23 - empty_catches
+   info - Empty catch block - lib\screens\ludo_game_screen.dart:192:19 - empty_catches
+warning - The value of the local variable 'expiresAt' isn't used - lib\screens\ludo_game_screen.dart:239:25 - unused_local_variable
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\ludo_game_screen.dart:323:31 - deprecated_member_use
+   info - Unnecessary use of 'toList' in a spread - lib\screens\ludo_game_screen.dart:338:51 - unnecessary_to_list_in_spreads
+   info - Unnecessary use of 'toList' in a spread - lib\screens\ludo_game_screen.dart:342:51 - unnecessary_to_list_in_spreads
+warning - The declaration '_buildPlayerInfo' isn't referenced - lib\screens\ludo_game_screen.dart:462:10 - unused_element
+warning - The declaration '_buildTurnOrderStrip' isn't referenced - lib\screens\ludo_game_screen.dart:492:10 - unused_element
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\ludo_game_screen.dart:531:27 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\ludo_game_screen.dart:534:57 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\ludo_game_screen.dart:540:37 - deprecated_member_use
+warning - The value of the local variable 'colorValue' isn't used - lib\screens\ludo_game_screen.dart:575:11 - unused_local_variable
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\ludo_game_screen.dart:591:37 - deprecated_member_use
+   info - Unnecessary use of string interpolation - lib\screens\ludo_game_screen.dart:598:21 - unnecessary_string_interpolations
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\ludo_game_screen.dart:756:24 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\ludo_game_screen.dart:934:38 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\ludo_game_screen.dart:941:41 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\ludo_game_screen.dart:1034:57 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\ludo_game_screen.dart:1041:41 - deprecated_member_use
+   info - Parameter 'key' could be a super parameter - lib\screens\ludo_home_screen.dart:13:9 - use_super_parameters
+   info - Use 'const' literals as arguments to constructors of '@immutable' classes - lib\screens\ludo_home_screen.dart:103:32 - prefer_const_literals_to_create_immutables
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\ludo_home_screen.dart:132:47 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\ludo_home_screen.dart:140:47 - deprecated_member_use
+   info - Use 'const' with the constructor to improve performance - lib\screens\ludo_home_screen.dart:178:26 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\screens\ludo_home_screen.dart:179:28 - prefer_const_constructors
+   info - Use 'const' literals as arguments to constructors of '@immutable' classes - lib\screens\ludo_home_screen.dart:181:33 - prefer_const_literals_to_create_immutables
+   info - Use 'const' with the constructor to improve performance - lib\screens\ludo_home_screen.dart:189:25 - prefer_const_constructors
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\ludo_home_screen.dart:510:42 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\ludo_home_screen.dart:733:35 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\ludo_home_screen.dart:738:50 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\ludo_home_screen.dart:741:28 - deprecated_member_use
+warning - The declaration '_buildGameModeButton' isn't referenced - lib\screens\ludo_home_screen.dart:820:10 - unused_element
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\ludo_home_screen.dart:832:26 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\ludo_home_screen.dart:847:39 - deprecated_member_use
+warning - The declaration '_showOfflineOptions' isn't referenced - lib\screens\ludo_home_screen.dart:875:8 - unused_element
+warning - The declaration '_startVsComputer' isn't referenced - lib\screens\ludo_home_screen.dart:934:8 - unused_element
+   info - Use 'const' with the constructor to improve performance - lib\screens\ludo_home_screen.dart:1086:18 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\screens\ludo_home_screen.dart:1116:18 - prefer_const_constructors
+   info - Parameter 'key' could be a super parameter - lib\screens\ludo_lobby_screen.dart:11:9 - use_super_parameters
+   info - Use 'const' with the constructor to improve performance - lib\screens\ludo_lobby_screen.dart:44:20 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\screens\ludo_lobby_screen.dart:45:22 - prefer_const_constructors
+   info - The local variable '_showRoomDetails' starts with an underscore - lib\screens\ludo_lobby_screen.dart:56:28 - no_leading_underscores_for_local_identifiers
+warning - The declaration '_showRoomDetails' isn't referenced - lib\screens\ludo_lobby_screen.dart:56:28 - unused_element
+   info - Don't use 'BuildContext's across async gaps - lib\screens\ludo_lobby_screen.dart:66:23 - use_build_context_synchronously
+   info - Don't use 'BuildContext's across async gaps - lib\screens\ludo_lobby_screen.dart:88:38 - use_build_context_synchronously
+warning - The value of the local variable 'userId' isn't used - lib\screens\ludo_lobby_screen.dart:103:27 - unused_local_variable
+   info - Use 'const' with the constructor to improve performance - lib\screens\ludo_lobby_screen.dart:111:43 - prefer_const_constructors
+   info - Use 'const' literals as arguments to constructors of '@immutable' classes - lib\screens\ludo_lobby_screen.dart:112:38 - prefer_const_literals_to_create_immutables
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\media_viewer_screen.dart:78:45 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\media_viewer_screen.dart:127:44 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\media_viewer_screen.dart:190:51 - deprecated_member_use
+warning - Unused import: 'add_story_screen.dart' - lib\screens\menu_screen.dart:7:8 - unused_import
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\menu_screen.dart:166:33 - deprecated_member_use
+warning - Unused import: 'dart:convert' - lib\screens\note_viewer_screen.dart:1:8 - unused_import
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\note_viewer_screen.dart:119:36 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\note_viewer_screen.dart:196:39 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\story_analytics_screen.dart:81:58 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\story_analytics_screen.dart:203:68 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\story_analytics_screen.dart:242:28 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\story_analytics_screen.dart:276:52 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\story_analytics_screen.dart:315:50 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\story_analytics_screen.dart:340:36 - deprecated_member_use
+   info - Use 'const' for final variables initialized to a constant value - lib\services\api_service.dart:156:7 - prefer_const_declarations
+   info - The prefix 'IO' isn't a lower_case_with_underscores identifier - lib\services\call_service.dart:4:60 - library_prefixes
+warning - The value of the field '_accessToken' isn't used - lib\services\call_service.dart:13:11 - unused_field
+warning - The value of the field '_callPartnerUsername' isn't used - lib\services\call_service.dart:19:11 - unused_field
+warning - The value of the field '_localMediaPrepared' isn't used - lib\services\call_service.dart:28:8 - unused_field
+warning - Unnecessary cast - lib\services\call_service.dart:196:21 - unnecessary_cast
+warning - Unnecessary cast - lib\services\call_service.dart:197:22 - unnecessary_cast
+warning - Unnecessary cast - lib\services\call_service.dart:223:49 - unnecessary_cast
+   info - 'switchCamera' is deprecated and shouldn't be used. use Helper.switchCamera() instead - lib\services\call_service.dart:545:21 - deprecated_member_use
+   info - Statements in an if should be enclosed in a block - lib\services\ludo_game_logic.dart:30:7 - curly_braces_in_flow_control_structures
+   info - Statements in an if should be enclosed in a block - lib\services\ludo_game_logic.dart:319:7 - curly_braces_in_flow_control_structures
+   info - Statements in an if should be enclosed in a block - lib\services\ludo_game_logic.dart:327:7 - curly_braces_in_flow_control_structures
+   info - The prefix 'IO' isn't a lower_case_with_underscores identifier - lib\services\ludo_socket_service.dart:2:60 - library_prefixes
+warning - Unused import: '../models/ludo_models.dart' - lib\services\ludo_socket_service.dart:3:8 - unused_import
+   info - Don't invoke 'print' in production code - lib\services\ludo_socket_service.dart:53:9 - avoid_print
+   info - Don't invoke 'print' in production code - lib\services\ludo_socket_service.dart:58:9 - avoid_print
+   info - Don't invoke 'print' in production code - lib\services\ludo_socket_service.dart:128:7 - avoid_print
+   info - Use 'const' with the constructor to improve performance - lib\services\message_service.dart:39:17 - prefer_const_constructors
+warning - The '!' will have no effect because the receiver can't be null - lib\services\message_service.dart:129:27 - unnecessary_non_null_assertion
+warning - The '!' will have no effect because the receiver can't be null - lib\services\message_service.dart:131:29 - unnecessary_non_null_assertion
+   info - Use 'const' with the constructor to improve performance - lib\services\message_service.dart:432:44 - prefer_const_constructors
+warning - The operand can't be 'null', so the condition is always 'true' - lib\services\message_service.dart:584:53 - unnecessary_null_comparison
+   info - Don't invoke 'print' in production code - lib\services\message_service.dart:933:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\services\message_service.dart:934:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\services\message_service.dart:935:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\services\message_service.dart:936:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\services\message_service.dart:949:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\services\message_service.dart:950:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\services\message_service.dart:953:9 - avoid_print
+   info - Use interpolation to compose strings and values - lib\services\message_service.dart:971:96 - prefer_interpolation_to_compose_strings
+   info - Don't invoke 'print' in production code - lib\services\message_service.dart:978:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\services\message_service.dart:1516:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\services\message_service.dart:1517:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\services\message_service.dart:1518:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\services\message_service.dart:1519:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\services\message_service.dart:1533:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\services\message_service.dart:1539:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\services\message_service.dart:1546:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\services\message_service.dart:1547:7 - avoid_print
+   info - Use interpolation to compose strings and values - lib\services\message_service.dart:1548:59 - prefer_interpolation_to_compose_strings
+   info - Don't invoke 'print' in production code - lib\services\message_service.dart:1554:11 - avoid_print
+   info - Don't invoke 'print' in production code - lib\services\message_service.dart:1567:11 - avoid_print
+   info - Don't invoke 'print' in production code - lib\services\message_service.dart:1584:9 - avoid_print
+   info - Don't invoke 'print' in production code - lib\services\message_service.dart:1590:7 - avoid_print
+warning - The '!' will have no effect because the receiver can't be null - lib\services\message_service.dart:1600:23 - unnecessary_non_null_assertion
+warning - The '!' will have no effect because the receiver can't be null - lib\services\message_service.dart:1605:25 - unnecessary_non_null_assertion
+warning - The '!' will have no effect because the receiver can't be null - lib\services\message_service.dart:1606:26 - unnecessary_non_null_assertion
+warning - The declaration '_startPolling' isn't referenced - lib\services\message_service.dart:1663:8 - unused_element
+   info - Use interpolation to compose strings and values - lib\services\story_service.dart:194:88 - prefer_interpolation_to_compose_strings
+   info - Statements in an if should be enclosed in a block - lib\services\upload_service.dart:71:11 - curly_braces_in_flow_control_structures
+   info - Statements in an if should be enclosed in a block - lib\services\upload_service.dart:95:9 - curly_braces_in_flow_control_structures
+   info - Use 'const' with the constructor to improve performance - lib\theme\colors.dart:39:20 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\theme\colors.dart:86:34 - prefer_const_constructors
+   info - 'dialogBackgroundColor' is deprecated and shouldn't be used. Use DialogThemeData.backgroundColor instead. This feature was deprecated after v3.27.0-0.1.pre - lib\theme\colors.dart:117:7 - deprecated_member_use
+   info - Use 'const' with the constructor to improve performance - lib\theme\colors.dart:178:34 - prefer_const_constructors
+   info - Parameter 'key' could be a super parameter - lib\widgets\cancel_match_button.dart:6:9 - use_super_parameters
+   info - Constructors for public widgets should have a named 'key' parameter - lib\widgets\incoming_call_toast.dart:10:9 - use_key_in_widget_constructors
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\widgets\incoming_call_toast.dart:88:41 - deprecated_member_use
+   info - Statements in an if should be enclosed in a block - lib\widgets\ludo_painters.dart:80:7 - curly_braces_in_flow_control_structures
+   info - Statements in an if should be enclosed in a block - lib\widgets\ludo_painters.dart:82:7 - curly_braces_in_flow_control_structures
+   info - Statements in an if should be enclosed in a block - lib\widgets\ludo_painters.dart:104:11 - curly_braces_in_flow_control_structures
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\widgets\ludo_painters.dart:482:46 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\widgets\ludo_painters.dart:486:46 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\widgets\ludo_painters.dart:494:31 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\widgets\ludo_painters.dart:587:32 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\widgets\ludo_painters.dart:609:32 - deprecated_member_use
+   info - Use 'const' with the constructor to improve performance - lib\widgets\notification_bell.dart:27:31 - prefer_const_constructors
+warning - Unused import: 'package:flutter/material.dart' - test\widget_test.dart:8:8 - unused_import
+
+flutter : 368 issues found. (ran in 8.9s)
+At line:1 char:48
++ ... \Desktop\chess\chess-main"; flutter analyze > analyze_output.txt 2>&1
++                                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (368 issues found. (ran in 8.9s):S 
+   tring) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
