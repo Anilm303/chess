@@ -127,19 +127,31 @@ class _AddStoryScreenState extends State<AddStoryScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final pageBackground = theme.scaffoldBackgroundColor;
+    final surfaceColor = theme.cardColor;
+    final borderColor = theme.dividerColor;
+    final primaryTextColor =
+        theme.textTheme.titleLarge?.color ?? theme.colorScheme.onSurface;
+    final secondaryTextColor = theme.textTheme.bodySmall?.color ??
+        theme.colorScheme.onSurface.withAlpha(179);
+    final appBarFore = theme.appBarTheme.foregroundColor ??
+        (isDark ? Colors.white : Colors.white);
+
     return Scaffold(
-      backgroundColor: MessengerColors.chatBackground,
+      backgroundColor: pageBackground,
       appBar: AppBar(
         flexibleSpace: Container(
           decoration: const BoxDecoration(
             gradient: MessengerColors.messengerGradient,
           ),
         ),
-        title: const Text(
+        title: Text(
           'Add Story',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+          style: TextStyle(color: appBarFore, fontWeight: FontWeight.w700),
         ),
-        iconTheme: const IconThemeData(color: Colors.white),
+        iconTheme: IconThemeData(color: appBarFore),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
@@ -148,9 +160,10 @@ class _AddStoryScreenState extends State<AddStoryScreen> {
           children: [
             const SizedBox(height: 32),
             if (_selectedMedia != null)
-              _buildMediaPreview()
+              _buildMediaPreview(surfaceColor)
             else
-              _buildEmptyState(),
+              _buildEmptyState(surfaceColor, borderColor, primaryTextColor,
+                  secondaryTextColor),
             const SizedBox(height: 32),
             if (_selectedMedia == null) ...[
               _buildPickButton(
@@ -186,25 +199,24 @@ class _AddStoryScreenState extends State<AddStoryScreen> {
                     child: Padding(
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       child: _isUploading
-                          ? const SizedBox(
+                          ? SizedBox(
                               height: 24,
                               width: 24,
                               child: CircularProgressIndicator(
                                 strokeWidth: 2,
-                                valueColor: AlwaysStoppedAnimation<Color>(
-                                  Colors.white,
-                                ),
+                                valueColor:
+                                    AlwaysStoppedAnimation<Color>(appBarFore),
                               ),
                             )
                           : Row(
                               mainAxisAlignment: MainAxisAlignment.center,
-                              children: const [
-                                Icon(Icons.cloud_upload, color: Colors.white),
-                                SizedBox(width: 8),
+                              children: [
+                                Icon(Icons.cloud_upload, color: appBarFore),
+                                const SizedBox(width: 8),
                                 Text(
                                   'Share Story',
                                   style: TextStyle(
-                                    color: Colors.white,
+                                    color: appBarFore,
                                     fontWeight: FontWeight.w700,
                                     fontSize: 16,
                                   ),
@@ -239,45 +251,46 @@ class _AddStoryScreenState extends State<AddStoryScreen> {
     );
   }
 
-  Widget _buildEmptyState() {
+  Widget _buildEmptyState(Color surfaceColor, Color? borderColor,
+      Color primaryTextColor, Color secondaryTextColor) {
     return Container(
       width: double.infinity,
       height: 300,
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: surfaceColor,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: MessengerColors.dividerColor),
+        border: Border.all(color: borderColor ?? MessengerColors.dividerColor),
       ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
-        children: const [
-          Icon(Icons.image, size: 64, color: Colors.grey),
-          SizedBox(height: 16),
+        children: [
+          Icon(Icons.image, size: 64, color: secondaryTextColor),
+          const SizedBox(height: 16),
           Text(
             'No media selected',
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w600,
-              color: Colors.black,
+              color: primaryTextColor,
             ),
           ),
-          SizedBox(height: 8),
+          const SizedBox(height: 8),
           Text(
             'Choose an image or video to share',
-            style: TextStyle(fontSize: 13, color: Color(0xFF8A8D91)),
+            style: TextStyle(fontSize: 13, color: secondaryTextColor),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildMediaPreview() {
+  Widget _buildMediaPreview(Color surfaceColor) {
     return Container(
       width: double.infinity,
       height: 300,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(12),
-        color: Colors.grey[200],
+        color: surfaceColor,
       ),
       child: Stack(
         alignment: Alignment.center,
@@ -309,13 +322,14 @@ class _AddStoryScreenState extends State<AddStoryScreen> {
                   )
                 : Column(
                     mainAxisAlignment: MainAxisAlignment.center,
-                    children: const [
-                      Icon(Icons.videocam, size: 64, color: Colors.white),
-                      SizedBox(height: 12),
+                    children: [
+                      Icon(Icons.videocam,
+                          size: 64, color: Theme.of(context).iconTheme.color),
+                      const SizedBox(height: 12),
                       Text(
                         'Video Selected',
                         style: TextStyle(
-                          color: Colors.white,
+                          color: Theme.of(context).textTheme.titleLarge?.color,
                           fontWeight: FontWeight.w600,
                           fontSize: 16,
                         ),
@@ -335,7 +349,7 @@ class _AddStoryScreenState extends State<AddStoryScreen> {
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: MessengerColors.messengerBlue, width: 2),
         boxShadow: [

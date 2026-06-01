@@ -360,6 +360,23 @@ class MessageService extends ChangeNotifier {
     }
   }
 
+  String _previewTextForMessage(String messageType, String text) {
+    final trimmed = text.trim();
+    if (trimmed.isNotEmpty) return trimmed;
+    switch (messageType) {
+      case 'image':
+        return '🖼️ Image';
+      case 'video':
+        return '🎥 Video';
+      case 'audio':
+        return '🎤 Voice note';
+      case 'call':
+        return '📞 Call';
+      default:
+        return '';
+    }
+  }
+
   Future<bool> fetchCurrentUserProfile(String accessToken) async {
     try {
       final response = await http.get(
@@ -568,7 +585,10 @@ class MessageService extends ChangeNotifier {
         } else {
           _upsertConversationPreview(
             username: sender,
-            lastMessage: message.text,
+            lastMessage: _previewTextForMessage(
+              message.messageType,
+              message.text,
+            ),
             lastMessageTime: message.timestamp.toIso8601String(),
             unreadIncrement: 1,
           );
@@ -886,6 +906,77 @@ class MessageService extends ChangeNotifier {
     }
   }
 
+  /// Debug helper: populate a few sample conversations locally for UI testing.
+  void debugPopulateSampleConversations() {
+    _conversations = [
+      ChatUser(
+        username: 'alice',
+        firstName: 'Alice',
+        lastName: 'K',
+        email: 'alice@example.com',
+        profileImage: null,
+        isOnline: true,
+        lastMessage: 'Hi there!',
+        lastMessageTime: DateTime.now().toIso8601String(),
+        unreadCount: 1,
+      ),
+      ChatUser(
+        username: 'bob',
+        firstName: 'Bob',
+        lastName: 'S',
+        email: 'bob@example.com',
+        profileImage: null,
+        isOnline: false,
+        lastMessage: 'Let\'s play later',
+        lastMessageTime:
+            DateTime.now().subtract(const Duration(hours: 3)).toIso8601String(),
+        unreadCount: 0,
+      ),
+    ];
+    notifyListeners();
+  }
+
+  /// Debug helper: populate a few sample users for UI testing.
+  void debugPopulateSampleUsers() {
+    _allUsers = [
+      ChatUser(
+        username: 'alice',
+        firstName: 'Alice',
+        lastName: 'K',
+        email: 'alice@example.com',
+        profileImage: null,
+        isOnline: true,
+        lastMessage: 'Hi there!',
+        lastMessageTime: DateTime.now().toIso8601String(),
+        unreadCount: 1,
+      ),
+      ChatUser(
+        username: 'bob',
+        firstName: 'Bob',
+        lastName: 'S',
+        email: 'bob@example.com',
+        profileImage: null,
+        isOnline: false,
+        lastMessage: 'Let\'s play later',
+        lastMessageTime:
+            DateTime.now().subtract(const Duration(hours: 3)).toIso8601String(),
+        unreadCount: 0,
+      ),
+      ChatUser(
+        username: 'charlie',
+        firstName: 'Charlie',
+        lastName: 'P',
+        email: 'charlie@example.com',
+        profileImage: null,
+        isOnline: false,
+        lastMessage: null,
+        lastMessageTime: null,
+        unreadCount: 0,
+      ),
+    ];
+    notifyListeners();
+  }
+
   Future<bool> createGroup({
     required String name,
     required List<String> members,
@@ -1065,6 +1156,12 @@ class MessageService extends ChangeNotifier {
           _currentConversation = (json['messages'] as List)
               .map((m) => Message.fromJson(m as Map<String, dynamic>))
               .toList();
+          debugPrint(
+              '💬 fetchConversation: loaded ${_currentConversation.length} messages; sample texts: ' +
+                  _currentConversation
+                      .take(5)
+                      .map((m) => '"${m.text}"')
+                      .join(', '));
           final markReadUrl =
               '${ApiService.baseUrl}/messages/conversation/$otherUser/mark-read';
           _logHttp('PUT $markReadUrl');
@@ -1208,7 +1305,7 @@ class MessageService extends ChangeNotifier {
     _currentConversation.add(optimistic);
     _upsertConversationPreview(
       username: receiver,
-      lastMessage: optimistic.text,
+      lastMessage: _previewTextForMessage(messageType, optimistic.text),
       lastMessageTime: optimistic.timestamp.toIso8601String(),
     );
     notifyListeners();
@@ -1298,7 +1395,10 @@ class MessageService extends ChangeNotifier {
               await _savePendingMessages();
               _upsertConversationPreview(
                 username: serverMsg.receiver,
-                lastMessage: serverMsg.text,
+                lastMessage: _previewTextForMessage(
+                  serverMsg.messageType,
+                  serverMsg.text,
+                ),
                 lastMessageTime: serverMsg.timestamp.toIso8601String(),
               );
               notifyListeners();
@@ -1542,7 +1642,7 @@ class MessageService extends ChangeNotifier {
           _currentConversation.add(message);
           _upsertConversationPreview(
             username: receiver,
-            lastMessage: messageType == 'video' ? '🎥 Video' : '🖼️ Image',
+            lastMessage: _previewTextForMessage(messageType, text ?? ''),
             lastMessageTime: message.timestamp.toIso8601String(),
           );
           _error = null;

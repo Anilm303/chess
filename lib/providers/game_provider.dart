@@ -43,7 +43,14 @@ class GameProvider extends ChangeNotifier {
       gameMode: gameMode,
       rules: rules,
     );
-    _gameController!.onGameStateChanged = () => notifyListeners();
+    _gameController!.onGameStateChanged = () {
+      notifyListeners();
+      try {
+        _scheduleAutoPlayIfNeeded(_gameController?.gameState.currentPlayer);
+      } catch (e) {
+        // ignore
+      }
+    };
     _gameController!.onTurnChanged = (player) {
       notifyListeners();
       try {
@@ -61,7 +68,7 @@ class GameProvider extends ChangeNotifier {
       _aiPlayer = AIPlayer(
         difficulty:
             players.firstWhere((p) => p.type == PlayerType.ai).difficulty ??
-            DifficultyLevel.medium,
+                DifficultyLevel.medium,
       );
     }
 
@@ -166,6 +173,8 @@ class GameProvider extends ChangeNotifier {
 
       if (movableTokens.isEmpty) {
         _gameController!.endTurn();
+      } else if (gameState!.currentPlayer.type == PlayerType.ai) {
+        _scheduleAutoPlayIfNeeded(gameState!.currentPlayer);
       }
     }
 
@@ -243,73 +252,75 @@ class GameProvider extends ChangeNotifier {
     if (_isAutoPlaying) return;
 
     _isAutoPlaying = true;
-    bool needsAnotherAutoTurn = false;
-    final String? aiTurnPlayerId = gameState!.currentPlayer.id;
     try {
-      // Wait for player to see dice
-      await Future.delayed(const Duration(milliseconds: 1500));
+      // Fully resolve AI turns in sequence, including extra turns.
+      while (isGamePlaying &&
+          gameState != null &&
+          gameState!.currentPlayer.type == PlayerType.ai) {
+        final aiPlayer = gameState!.currentPlayer;
+        final String aiTurnPlayerId = aiPlayer.id;
+        final aiController = _aiPlayer ??
+            AIPlayer(difficulty: aiPlayer.difficulty ?? DifficultyLevel.medium);
 
-      if (!isGamePlaying ||
-          gameState == null ||
-          gameState!.currentPlayer.id != aiTurnPlayerId) {
-        return;
-      }
+        // Roll when needed.
+        if (!gameState!.diceRolled || gameState!.diceValue == 0) {
+          await Future.delayed(const Duration(milliseconds: 550));
+          if (!isGamePlaying ||
+              gameState == null ||
+              gameState!.currentPlayer.id != aiTurnPlayerId) {
+            break;
+          }
 
-      final aiPlayer = gameState!.currentPlayer;
-      final aiController =
-          _aiPlayer ??
-          AIPlayer(difficulty: aiPlayer.difficulty ?? DifficultyLevel.medium);
-
-      // If dice hasn't been rolled yet, roll for the AI
-      if (diceValue == 0) {
-        rollDice();
-        await Future.delayed(const Duration(milliseconds: 900));
-        if (!isGamePlaying ||
-            gameState == null ||
-            gameState!.currentPlayer.id != aiTurnPlayerId) {
-          return;
+          rollDice();
+          await Future.delayed(const Duration(milliseconds: 450));
+          if (!isGamePlaying ||
+              gameState == null ||
+              gameState!.currentPlayer.id != aiTurnPlayerId) {
+            continue;
+          }
         }
-      }
 
-      final movableTokens = LudoGameLogic.getMovableTokens(
-        aiPlayer,
-        diceValue,
-        allPlayers: gameState!.players,
-        rules: gameState!.rules,
-      );
-
-      if (movableTokens.isNotEmpty) {
-        final selectedToken = aiController.getBestMove(
-          aiPlayer,
-          diceValue,
-          gameState!.players,
+        final int currentDice = gameState!.diceValue;
+        final movableTokens = LudoGameLogic.getMovableTokens(
+          gameState!.currentPlayer,
+          currentDice,
+          allPlayers: gameState!.players,
           rules: gameState!.rules,
         );
 
-        if (selectedToken != null) {
-          await Future.delayed(const Duration(milliseconds: 800));
-          final moved = moveToken(selectedToken);
-          needsAnotherAutoTurn =
-              moved &&
-              isGamePlaying &&
-              gameState != null &&
-              gameState!.currentPlayer.id == aiTurnPlayerId &&
-              gameState!.currentPlayer.type == PlayerType.ai &&
-              !gameState!.diceRolled;
-        } else {
+        // Nothing to move: pass turn to avoid deadlock.
+        if (movableTokens.isEmpty) {
           _gameController!.endTurn();
+          notifyListeners();
+          await Future.delayed(const Duration(milliseconds: 250));
+          continue;
         }
-      } else {
-        // No movable token: pass the turn to keep the game moving.
-        _gameController!.endTurn();
-        notifyListeners();
+
+        final selectedToken = aiController.getBestMove(
+          gameState!.currentPlayer,
+          currentDice,
+          gameState!.players,
+          rules: gameState!.rules,
+        );
+        final tokenToMove = selectedToken ?? movableTokens.first;
+
+        await Future.delayed(const Duration(milliseconds: 450));
+        final moved = moveToken(tokenToMove);
+
+        // Defensive recovery: never stay stuck on an unresolved AI roll.
+        if (!moved &&
+            gameState != null &&
+            gameState!.currentPlayer.id == aiTurnPlayerId &&
+            gameState!.diceRolled) {
+          _gameController!.endTurn();
+          notifyListeners();
+        }
+
+        await Future.delayed(const Duration(milliseconds: 250));
       }
     } finally {
       _isAutoPlaying = false;
-    }
-
-    if (needsAnotherAutoTurn) {
-      _scheduleAutoPlayIfNeeded(gameState?.currentPlayer);
+      _autoPlayScheduled = false;
     }
   }
 
@@ -320,7 +331,7 @@ class GameProvider extends ChangeNotifier {
     if (_autoPlayScheduled || _isAutoPlaying) return;
 
     _autoPlayScheduled = true;
-    Future.delayed(const Duration(milliseconds: 600), () async {
+    Future.delayed(const Duration(milliseconds: 180), () async {
       _autoPlayScheduled = false;
       try {
         await autoPlayAITurn();
@@ -399,8 +410,7 @@ class GameProvider extends ChangeNotifier {
   void quickMatch({int maxPlayers = 4}) {
     if (_socketService == null ||
         _currentUserId == null ||
-        _currentUsername == null)
-      return;
+        _currentUsername == null) return;
     isSearchingMatch = true;
     notifyListeners();
     _socketService!.quickMatch(
@@ -572,9 +582,8 @@ class GameProvider extends ChangeNotifier {
             for (final player in oldState!.players) {
               for (final token in player.tokens) {
                 final newToken = newTokenMap[player.id]?[token.id];
-                final int? newPos = newToken != null
-                    ? (newToken['position'] as int?)
-                    : null;
+                final int? newPos =
+                    newToken != null ? (newToken['position'] as int?) : null;
                 final bool newKilled = newToken != null
                     ? (newToken['isKilled'] as bool? ?? false)
                     : false;
@@ -613,7 +622,7 @@ class GameProvider extends ChangeNotifier {
             try {
               final String? newCurrent = incoming['currentPlayerIndex'] != null
                   ? (incoming['players']
-                        as List<dynamic>)[incoming['currentPlayerIndex']]['id']
+                      as List<dynamic>)[incoming['currentPlayerIndex']]['id']
                   : null;
               if (_prevCurrentPlayerId != null &&
                   newCurrent != null &&

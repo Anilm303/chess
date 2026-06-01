@@ -324,6 +324,32 @@ class _LudoHomeScreenState extends State<LudoHomeScreen>
             const SizedBox(height: 12),
             _sectionHeader('Game Rules'),
             const SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                TextButton(
+                  onPressed: () => _setRules(const LudoRuleSettings(
+                    showSafeCells: true,
+                    openTokenOnOne: true,
+                    openTokenOnSix: true,
+                    extraTurnOnSix: true,
+                    extraTurnOnCapture: true,
+                    extraTurnOnHome: true,
+                    mustCutIfCuttable: true,
+                    barrierEnabled: true,
+                    threeConsecutiveSixesBringCoinOut: true,
+                    threeConsecutiveOnesCutOwnCoin: true,
+                    skipTurnAfterThreeOnes: true,
+                  )),
+                  child: const Text('Use Full Rules'),
+                ),
+                const SizedBox(width: 8),
+                TextButton(
+                  onPressed: () => _setRules(const LudoRuleSettings()),
+                  child: const Text('Reset'),
+                ),
+              ],
+            ),
             _buildRuleRow(
               '6 also gives another turn',
               _rules.extraTurnOnSix,

@@ -15,6 +15,7 @@ class SocketService {
     required void Function(dynamic) onMessage,
     required void Function() onConnected,
     required void Function() onDisconnected,
+    Map<String, void Function(dynamic)>? eventHandlers,
   }) {
     final base = ApiService.socketBaseUrl;
     final url = base; // socketBaseUrl already strips /api
@@ -52,6 +53,14 @@ class SocketService {
     });
 
     _socket!.on('message', (data) => onMessage(data));
+    // register any custom event handlers
+    if (eventHandlers != null) {
+      eventHandlers.forEach((event, handler) {
+        try {
+          _socket!.on(event, (data) => handler(data));
+        } catch (_) {}
+      });
+    }
 
     _socket!.connect();
   }

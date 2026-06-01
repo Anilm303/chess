@@ -10,6 +10,7 @@ import '../../../../services/theme_service.dart';
 import '../../../chat/presentation/screens/messaging_screen.dart';
 import '../../../face_liveness/presentation/screens/liveness_permission_screen.dart';
 import '../../../ludo/presentation/screens/ludo_home_screen.dart';
+import '../../../tournament/presentation/screens/tournament_list_screen.dart';
 
 class ChessBoardScreen extends StatefulWidget {
   const ChessBoardScreen({super.key});
@@ -142,6 +143,15 @@ class _ChessBoardScreenState extends State<ChessBoardScreen> {
               );
             },
           ),
+          IconButton(
+            tooltip: 'Tournaments',
+            icon: const Icon(Icons.emoji_events_outlined),
+            color: Colors.amber.shade700,
+            onPressed: () {
+              Navigator.of(context).push(MaterialPageRoute(
+                  builder: (_) => const TournamentListScreen()));
+            },
+          ),
           Consumer<ThemeService>(
             builder: (context, themeService, _) {
               final isDarkMode = themeService.isDarkMode;
@@ -178,20 +188,13 @@ class _ChessBoardScreenState extends State<ChessBoardScreen> {
                     color: Colors.transparent,
                     child: InkWell(
                       onTap: () {
-                        // Load message data before navigating
                         final messageService = context.read<MessageService>();
                         final authService = context.read<AuthService>();
-
-                        if (authService.accessToken != null && mounted) {
-                          messageService.fetchCurrentUserProfile(
-                            authService.accessToken!,
-                          );
-                          messageService.fetchConversations(
-                            authService.accessToken!,
-                          );
-                          messageService.fetchAllUsers(
-                            authService.accessToken!,
-                          );
+                        final token = authService.accessToken;
+                        if (token != null) {
+                          messageService.fetchCurrentUserProfile(token);
+                          messageService.fetchConversations(token);
+                          messageService.fetchAllUsers(token);
                         }
 
                         Navigator.of(context).push(

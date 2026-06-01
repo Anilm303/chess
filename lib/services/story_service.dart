@@ -34,22 +34,19 @@ class StoryService extends ChangeNotifier {
     try {
       final url = Uri.parse('${ApiService.baseUrl}/stories/active');
       _log('GET $url');
-      final response = await http
-          .get(
-            url,
-            headers: {
-              'Authorization': 'Bearer $accessToken',
-              'Content-Type': 'application/json',
-            },
-          )
-          .timeout(const Duration(seconds: 30));
+      final response = await http.get(
+        url,
+        headers: {
+          'Authorization': 'Bearer $accessToken',
+          'Content-Type': 'application/json',
+        },
+      ).timeout(const Duration(seconds: 30));
       _logResponse('GET /stories/active', response);
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         if (data['success'] == true) {
-          final storiesList =
-              (data['stories'] as List?)
+          final storiesList = (data['stories'] as List?)
                   ?.map((s) => StoryGroup.fromJson(s as Map<String, dynamic>))
                   .toList() ??
               [];
@@ -160,8 +157,8 @@ class StoryService extends ChangeNotifier {
 
       _log('Sending multipart request...');
       final streamed = await request.send().timeout(
-        const Duration(seconds: 120),
-      );
+            const Duration(seconds: 120),
+          );
       final response = await http.Response.fromStream(streamed);
 
       _logResponse('MULTIPART POST /stories/upload', response);
@@ -181,8 +178,7 @@ class StoryService extends ChangeNotifier {
       } else {
         try {
           final data = jsonDecode(response.body);
-          _error =
-              data['message'] ??
+          _error = data['message'] ??
               'Failed to upload story (${response.statusCode})';
         } catch (_) {
           if (response.statusCode == 413) {
@@ -212,17 +208,36 @@ class StoryService extends ChangeNotifier {
   /// Mark story as viewed
   Future<bool> markStoryViewed(String storyId, String accessToken) async {
     try {
-      final response = await http
-          .post(
-            Uri.parse('${ApiService.baseUrl}/stories/$storyId/view'),
-            headers: {
-              'Authorization': 'Bearer $accessToken',
-              'Content-Type': 'application/json',
-            },
-          )
-          .timeout(const Duration(seconds: 30));
+      final response = await http.post(
+        Uri.parse('${ApiService.baseUrl}/stories/$storyId/view'),
+        headers: {
+          'Authorization': 'Bearer $accessToken',
+          'Content-Type': 'application/json',
+        },
+      ).timeout(const Duration(seconds: 30));
 
       return response.statusCode == 200;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  /// Delete an owned story
+  Future<bool> deleteStory(String storyId, String accessToken) async {
+    try {
+      final response = await http.delete(
+        Uri.parse('${ApiService.baseUrl}/stories/$storyId'),
+        headers: {
+          'Authorization': 'Bearer $accessToken',
+          'Content-Type': 'application/json',
+        },
+      ).timeout(const Duration(seconds: 30));
+
+      if (response.statusCode == 200) {
+        await fetchStories(accessToken);
+        return true;
+      }
+      return false;
     } catch (e) {
       return false;
     }
@@ -263,15 +278,13 @@ class StoryService extends ChangeNotifier {
     String accessToken,
   ) async {
     try {
-      final response = await http
-          .get(
-            Uri.parse('${ApiService.baseUrl}/stories/$storyId/analytics'),
-            headers: {
-              'Authorization': 'Bearer $accessToken',
-              'Content-Type': 'application/json',
-            },
-          )
-          .timeout(const Duration(seconds: 30));
+      final response = await http.get(
+        Uri.parse('${ApiService.baseUrl}/stories/$storyId/analytics'),
+        headers: {
+          'Authorization': 'Bearer $accessToken',
+          'Content-Type': 'application/json',
+        },
+      ).timeout(const Duration(seconds: 30));
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
