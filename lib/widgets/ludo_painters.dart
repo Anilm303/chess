@@ -3,18 +3,80 @@ import 'package:flutter/material.dart';
 import 'dart:math';
 import '../models/ludo_models.dart';
 
+/// Defines the 4 selectable board color themes.
+class LudoBoardTheme {
+  final Color red;
+  final Color green;
+  final Color yellow;
+  final Color blue;
+  final Color boardBg;
+  final Color pathBg;
+
+  const LudoBoardTheme({
+    required this.red,
+    required this.green,
+    required this.yellow,
+    required this.blue,
+    required this.boardBg,
+    required this.pathBg,
+  });
+
+  static const List<LudoBoardTheme> themes = [
+    // Theme 1 – Classic
+    LudoBoardTheme(
+      red: Color(0xFFF1463A),
+      green: Color(0xFF59A95A),
+      yellow: Color(0xFFF0D63D),
+      blue: Color(0xFF3B73F2),
+      boardBg: Color(0xFFE5C599),
+      pathBg: Color(0xFFEDE0C8),
+    ),
+    // Theme 2 – Deep Ocean
+    LudoBoardTheme(
+      red: Color(0xFF1565C0),
+      green: Color(0xFF00838F),
+      yellow: Color(0xFF29B6F6),
+      blue: Color(0xFF6A1B9A),
+      boardBg: Color(0xFF0D2137),
+      pathBg: Color(0xFF163352),
+    ),
+    // Theme 3 – Pastel
+    LudoBoardTheme(
+      red: Color(0xFFEF9A9A),
+      green: Color(0xFFA5D6A7),
+      yellow: Color(0xFFFFF176),
+      blue: Color(0xFF90CAF9),
+      boardBg: Color(0xFFFFF8E1),
+      pathBg: Color(0xFFFFF3E0),
+    ),
+    // Theme 4 – Dark Neon
+    LudoBoardTheme(
+      red: Color(0xFFFF1744),
+      green: Color(0xFF00E676),
+      yellow: Color(0xFFFFEA00),
+      blue: Color(0xFF2979FF),
+      boardBg: Color(0xFF121212),
+      pathBg: Color(0xFF1E1E1E),
+    ),
+  ];
+}
+
 class LudoBoardPainter extends CustomPainter {
   final GameState gameState;
   final double boardSize;
   final Map<String, dynamic>? lastMove;
   final bool showSafeCells;
+  final int boardIndex;
 
   LudoBoardPainter({
     required this.gameState,
     this.boardSize = 400,
     this.lastMove,
     this.showSafeCells = true,
+    this.boardIndex = 0,
   });
+
+  LudoBoardTheme get _theme => LudoBoardTheme.themes[boardIndex.clamp(0, LudoBoardTheme.themes.length - 1)];
 
   // Standard Ludo Path Coordinates (52 steps around the perimeter)
   static const List<Offset> _pathCoords = [
@@ -88,21 +150,33 @@ class LudoBoardPainter extends CustomPainter {
   }
 
   void _drawBoard(Canvas canvas, double cellSize) {
+    // Draw thick border around the entire board
+    final boardRect = Rect.fromLTWH(0, 0, 15 * cellSize, 15 * cellSize);
+    
+    // Draw background using theme color
+    final woodPaint = Paint()..color = _theme.pathBg;
+    canvas.drawRect(boardRect, woodPaint);
+
     final borderPaint = Paint()
+      ..color = Colors.black
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 3;
+    canvas.drawRect(boardRect, borderPaint);
+
+    // Grid lines for the path cells
+    final linePaint = Paint()
       ..color = Colors.black
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1;
 
-    // Draw all path cells first (white by default)
     for (int x = 0; x < 15; x++) {
       for (int y = 0; y < 15; y++) {
-        // Skip corner home bases
         if ((x < 6 && y < 6) ||
             (x > 8 && y < 6) ||
             (x < 6 && y > 8) ||
-            (x > 8 && y > 8))
+            (x > 8 && y > 8)) {
           continue;
-        // Skip center triangle area
+        }
         if (x >= 6 && x <= 8 && y >= 6 && y <= 8) continue;
 
         final rect = Rect.fromLTWH(
@@ -111,19 +185,18 @@ class LudoBoardPainter extends CustomPainter {
           cellSize,
           cellSize,
         );
-        canvas.drawRect(rect, Paint()..color = Colors.white);
-        canvas.drawRect(rect, borderPaint);
+        canvas.drawRect(rect, linePaint);
       }
     }
 
-    // Draw 4 home bases
-    _drawHomeBase(canvas, cellSize, 0, 9, Colors.red);
-    _drawHomeBase(canvas, cellSize, 0, 0, Colors.green);
-    _drawHomeBase(canvas, cellSize, 9, 0, Colors.yellow[700]!);
-    _drawHomeBase(canvas, cellSize, 9, 9, Colors.blue);
-
     // Color start squares, safe stars, and home stretches
     _colorSpecialCells(canvas, cellSize);
+
+    // Draw 4 home bases
+    _drawHomeBase(canvas, cellSize, 0, 9, PlayerColor.red);
+    _drawHomeBase(canvas, cellSize, 0, 0, PlayerColor.green);
+    _drawHomeBase(canvas, cellSize, 9, 0, PlayerColor.yellow);
+    _drawHomeBase(canvas, cellSize, 9, 9, PlayerColor.blue);
 
     // Draw Center
     _drawCenter(canvas, cellSize);
@@ -134,56 +207,103 @@ class LudoBoardPainter extends CustomPainter {
     double cellSize,
     int col,
     int row,
-    Color color,
+    PlayerColor pColor,
   ) {
+    final Color color = _getPlayerColor(pColor);
     final rect = Rect.fromLTWH(
       col * cellSize,
       row * cellSize,
       6 * cellSize,
       6 * cellSize,
     );
-    canvas.drawRect(rect, Paint()..color = color);
-    canvas.drawRect(
-      rect,
+    
+    // Outer colored rounded rectangle
+    final rrect = RRect.fromRectAndRadius(rect, Radius.circular(cellSize * 0.5));
+    canvas.drawRRect(rrect, Paint()..color = color);
+    canvas.drawRRect(
+      rrect,
       Paint()
         ..color = Colors.black
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 2,
+        ..strokeWidth = 3,
     );
 
-    // Inner white square
-    final innerRect = Rect.fromLTWH(
-      (col + 1) * cellSize,
-      (row + 1) * cellSize,
-      4 * cellSize,
-      4 * cellSize,
+    // Inner white rounded square
+    final innerRRect = RRect.fromRectAndRadius(
+      Rect.fromLTWH(
+        (col + 1) * cellSize,
+        (row + 1.2) * cellSize,
+        4 * cellSize,
+        3.6 * cellSize,
+      ),
+      Radius.circular(cellSize * 0.8),
     );
-    canvas.drawRect(innerRect, Paint()..color = Colors.white);
-    canvas.drawRect(
-      innerRect,
-      Paint()
-        ..color = Colors.black
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 1,
-    );
+    canvas.drawRRect(innerRRect, Paint()..color = Colors.white);
 
-    // 4 token spots
-    final spotPaint = Paint()..color = color;
-    final spotBorder = Paint()
-      ..color = Colors.black
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1;
+    // 4 token spots (concentric rings)
     for (int i = 0; i < 4; i++) {
-      final dx = (i % 2 == 0) ? 2.0 : 4.0;
-      final dy = (i < 2) ? 2.0 : 4.0;
-      final center = Offset((col + dx) * cellSize, (row + dy) * cellSize);
-      canvas.drawCircle(center, cellSize * 0.7, spotPaint);
-      canvas.drawCircle(center, cellSize * 0.7, spotBorder);
+      final dx = (i % 2 == 0) ? 1.5 : 3.5;
+      final dy = (i < 2) ? 1.6 : 3.4;
+      final center = Offset((col + dx + 0.5) * cellSize, (row + dy + 0.5) * cellSize);
+      
+      canvas.drawCircle(center, cellSize * 0.65, Paint()..color = color);
+      canvas.drawCircle(center, cellSize * 0.45, Paint()..color = Colors.white);
+      canvas.drawCircle(center, cellSize * 0.25, Paint()..color = color);
+    }
+    
+    // Player Name and Percentage
+    Player? p;
+    try {
+      p = gameState.players.firstWhere((element) => element.color == pColor);
+    } catch (_) {}
+    
+    if (p != null) {
+      // Calculate completion percentage based on tokens reached home
+      int tokensInHome = p.tokens.where((t) => t.position == 57 || t.isInHome).length;
+      double pct = p.tokenCount > 0 ? (tokensInHome / p.tokenCount) * 100 : 0.0;
+      String pctStr = pct == 0 ? "0%" : "${pct.toStringAsFixed(1)}%";
+      if (pctStr.endsWith(".0%")) pctStr = pctStr.replaceAll(".0%", "%");
+
+      // Draw Percentage
+      final pctPainter = TextPainter(
+        text: TextSpan(
+          text: pctStr,
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+            fontSize: cellSize * 0.5,
+          ),
+        ),
+        textDirection: TextDirection.ltr,
+      );
+      pctPainter.layout();
+      pctPainter.paint(
+        canvas, 
+        Offset(rect.center.dx - pctPainter.width / 2, rect.top + cellSize * 0.2),
+      );
+
+      // Draw Name
+      final namePainter = TextPainter(
+        text: TextSpan(
+          text: p.name,
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+            fontSize: cellSize * 0.55,
+          ),
+        ),
+        textDirection: TextDirection.ltr,
+      );
+      namePainter.layout();
+      namePainter.paint(
+        canvas, 
+        Offset(rect.center.dx - namePainter.width / 2, rect.bottom - cellSize * 0.8),
+      );
     }
   }
 
   void _colorSpecialCells(Canvas canvas, double cellSize) {
-    void paintCell(Offset coord, Color color, {bool isStar = false}) {
+    void paintCell(Offset coord, Color color, {bool isStar = false, bool isStart = false}) {
       final rect = Rect.fromLTWH(
         coord.dx * cellSize,
         coord.dy * cellSize,
@@ -209,23 +329,25 @@ class LudoBoardPainter extends CustomPainter {
       }
     }
 
-    // Paint start squares using BoardConfig start positions
+    // Paint start squares
     BoardConfig.playerStartPositions.forEach((color, startIdx) {
       final token = Token(id: 0, playerColor: color, position: startIdx);
       final coord = gridCoordinateForToken(token);
-      paintCell(coord, _getPlayerColor(color));
+      paintCell(coord, _getPlayerColor(color), isStart: true);
     });
 
-    // Paint safe positions (stars) from BoardConfig when enabled.
+    // Paint safe positions (stars)
     if (showSafeCells) {
       for (final idx in BoardConfig.safePositions) {
         final tmp = Token(id: 0, playerColor: PlayerColor.red, position: idx);
         final coord = gridCoordinateForToken(tmp);
-        paintCell(coord, Colors.grey[800]!, isStar: true);
+        // Only draw star if it's not a start square (start squares are already colored)
+        bool isStart = BoardConfig.playerStartPositions.values.contains(idx);
+        paintCell(coord, isStart ? _getPlayerColor(BoardConfig.playerStartPositions.entries.firstWhere((e) => e.value == idx).key) : const Color(0xFFC9A676), isStar: true);
       }
     }
 
-    // Paint home-stretch cells (first 5 steps) for each color
+    // Paint home-stretch cells
     for (final color in PlayerColor.values) {
       for (int step = 1; step <= BoardConfig.homePositions - 1; step++) {
         final token = Token(id: 0, playerColor: color, position: 51 + step);
@@ -233,6 +355,46 @@ class LudoBoardPainter extends CustomPainter {
         paintCell(coord, _getPlayerColor(color));
       }
     }
+    
+    // Draw arrows
+    _drawArrows(canvas, cellSize);
+  }
+
+  void _drawArrows(Canvas canvas, double cellSize) {
+    final paint = Paint()
+      ..color = Colors.black
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.5;
+
+    void drawArrow(Offset start, Offset end) {
+      canvas.drawLine(start, end, paint);
+      // Arrow head
+      final double arrowSize = cellSize * 0.2;
+      final double angle = atan2(end.dy - start.dy, end.dx - start.dx);
+      canvas.drawLine(end, Offset(end.dx - arrowSize * cos(angle - pi / 6), end.dy - arrowSize * sin(angle - pi / 6)), paint);
+      canvas.drawLine(end, Offset(end.dx - arrowSize * cos(angle + pi / 6), end.dy - arrowSize * sin(angle + pi / 6)), paint);
+    }
+    
+    // Curving entry arrows
+    // Red (Left)
+    drawArrow(Offset(0.5 * cellSize, 8.5 * cellSize), Offset(1.5 * cellSize, 8.5 * cellSize));
+    canvas.drawArc(Rect.fromLTWH(0.5 * cellSize, 7.5 * cellSize, cellSize, cellSize), pi/2, -pi, false, paint);
+    drawArrow(Offset(1.5 * cellSize, 7.5 * cellSize), Offset(2.5 * cellSize, 7.5 * cellSize));
+    
+    // Blue (Right)
+    drawArrow(Offset(14.5 * cellSize, 6.5 * cellSize), Offset(13.5 * cellSize, 6.5 * cellSize));
+    canvas.drawArc(Rect.fromLTWH(13.5 * cellSize, 6.5 * cellSize, cellSize, cellSize), -pi/2, -pi, false, paint);
+    drawArrow(Offset(13.5 * cellSize, 7.5 * cellSize), Offset(12.5 * cellSize, 7.5 * cellSize));
+
+    // Green (Top)
+    drawArrow(Offset(6.5 * cellSize, 0.5 * cellSize), Offset(6.5 * cellSize, 1.5 * cellSize));
+    canvas.drawArc(Rect.fromLTWH(6.5 * cellSize, 0.5 * cellSize, cellSize, cellSize), 0, -pi, false, paint);
+    drawArrow(Offset(7.5 * cellSize, 1.5 * cellSize), Offset(7.5 * cellSize, 2.5 * cellSize));
+
+    // Yellow (Bottom)
+    drawArrow(Offset(8.5 * cellSize, 14.5 * cellSize), Offset(8.5 * cellSize, 13.5 * cellSize));
+    canvas.drawArc(Rect.fromLTWH(7.5 * cellSize, 13.5 * cellSize, cellSize, cellSize), pi, -pi, false, paint);
+    drawArrow(Offset(7.5 * cellSize, 13.5 * cellSize), Offset(7.5 * cellSize, 12.5 * cellSize));
   }
 
   void _drawCenter(Canvas canvas, double cellSize) {
@@ -244,35 +406,36 @@ class LudoBoardPainter extends CustomPainter {
     );
     final center = rect.center;
 
-    // Bottom Triangle (Red)
+    // Draw curvy cross like the screenshot
     final pathRed = Path()
       ..moveTo(rect.left, rect.bottom)
-      ..lineTo(rect.right, rect.bottom)
-      ..lineTo(center.dx, center.dy)
+      ..lineTo(rect.left, rect.bottom - 1.5 * cellSize)
+      ..quadraticBezierTo(center.dx - 0.5 * cellSize, center.dy + 0.5 * cellSize, center.dx, center.dy)
+      ..quadraticBezierTo(center.dx - 0.5 * cellSize, rect.bottom - 0.5 * cellSize, rect.right - 1.5 * cellSize, rect.bottom)
       ..close();
     canvas.drawPath(pathRed, Paint()..color = Colors.red);
 
-    // Left Triangle (Green)
     final pathGreen = Path()
       ..moveTo(rect.left, rect.top)
-      ..lineTo(rect.left, rect.bottom)
-      ..lineTo(center.dx, center.dy)
+      ..lineTo(rect.left + 1.5 * cellSize, rect.top)
+      ..quadraticBezierTo(center.dx - 0.5 * cellSize, center.dy - 0.5 * cellSize, center.dx, center.dy)
+      ..quadraticBezierTo(rect.left + 0.5 * cellSize, center.dy - 0.5 * cellSize, rect.left, rect.bottom - 1.5 * cellSize)
       ..close();
     canvas.drawPath(pathGreen, Paint()..color = Colors.green);
 
-    // Top Triangle (Yellow)
     final pathYellow = Path()
-      ..moveTo(rect.left, rect.top)
-      ..lineTo(rect.right, rect.top)
-      ..lineTo(center.dx, center.dy)
+      ..moveTo(rect.right, rect.bottom)
+      ..lineTo(rect.right - 1.5 * cellSize, rect.bottom)
+      ..quadraticBezierTo(center.dx + 0.5 * cellSize, center.dy + 0.5 * cellSize, center.dx, center.dy)
+      ..quadraticBezierTo(rect.right - 0.5 * cellSize, center.dy + 0.5 * cellSize, rect.right, rect.top + 1.5 * cellSize)
       ..close();
     canvas.drawPath(pathYellow, Paint()..color = Colors.yellow[700]!);
 
-    // Right Triangle (Blue)
     final pathBlue = Path()
       ..moveTo(rect.right, rect.top)
-      ..lineTo(rect.right, rect.bottom)
-      ..lineTo(center.dx, center.dy)
+      ..lineTo(rect.left + 1.5 * cellSize, rect.top)
+      ..quadraticBezierTo(center.dx + 0.5 * cellSize, center.dy - 0.5 * cellSize, center.dx, center.dy)
+      ..quadraticBezierTo(center.dx + 0.5 * cellSize, rect.top + 0.5 * cellSize, rect.right, rect.top + 1.5 * cellSize)
       ..close();
     canvas.drawPath(pathBlue, Paint()..color = Colors.blue);
 
@@ -280,10 +443,16 @@ class LudoBoardPainter extends CustomPainter {
     final linePaint = Paint()
       ..color = Colors.black
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 1;
-    canvas.drawLine(rect.topLeft, rect.bottomRight, linePaint);
-    canvas.drawLine(rect.topRight, rect.bottomLeft, linePaint);
+      ..strokeWidth = 2;
+    canvas.drawPath(pathRed, linePaint);
+    canvas.drawPath(pathGreen, linePaint);
+    canvas.drawPath(pathYellow, linePaint);
+    canvas.drawPath(pathBlue, linePaint);
     canvas.drawRect(rect, linePaint);
+    
+    // Draw central colored circle in the cross intersection
+    canvas.drawCircle(center, cellSize * 0.4, Paint()..color = Colors.grey[200]!);
+    canvas.drawCircle(center, cellSize * 0.4, linePaint);
   }
 
   void _drawStar(Canvas canvas, Offset center, double size, Paint paint) {
@@ -348,8 +517,8 @@ class LudoBoardPainter extends CustomPainter {
           baseY = 9;
           break;
       }
-      final dx = (token.id % 2 == 0) ? 2.0 : 4.0;
-      final dy = (token.id < 2) ? 2.0 : 4.0;
+      final dx = (token.id % 2 == 0) ? 1.5 : 3.5;
+      final dy = (token.id < 2) ? 1.6 : 3.4;
       return Offset(baseX + dx, baseY + dy);
     } else if (token.position >= 52) {
       int steps = token.position - 51; // position 52 -> step 1
@@ -388,8 +557,8 @@ class LudoBoardPainter extends CustomPainter {
         break; // Bottom-Right
     }
 
-    final dx = (token.id % 2 == 0) ? 2.0 : 4.0;
-    final dy = (token.id < 2) ? 2.0 : 4.0;
+    final dx = (token.id % 2 == 0) ? 1.5 : 3.5;
+    final dy = (token.id < 2) ? 1.6 : 3.4;
 
     return Offset(baseX + dx, baseY + dy);
   }
@@ -397,13 +566,13 @@ class LudoBoardPainter extends CustomPainter {
   Color _getPlayerColor(PlayerColor color) {
     switch (color) {
       case PlayerColor.red:
-        return Colors.red;
+        return _theme.red;
       case PlayerColor.green:
-        return Colors.green;
+        return _theme.green;
       case PlayerColor.yellow:
-        return Colors.yellow[700]!;
+        return _theme.yellow;
       case PlayerColor.blue:
-        return Colors.blue;
+        return _theme.blue;
     }
   }
 
@@ -633,8 +802,6 @@ class LudoBoardPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(LudoBoardPainter oldDelegate) {
-    return oldDelegate.gameState != gameState ||
-        oldDelegate.lastMove != lastMove ||
-        oldDelegate.showSafeCells != showSafeCells;
+    return true; // Always repaint to ensure tokens and theme update immediately
   }
 }

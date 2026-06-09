@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import '../../../../services/api_service.dart';
+import 'package:provider/provider.dart';
+import '../../../../services/auth_service.dart';
 
 class CreateTournamentScreen extends StatefulWidget {
   const CreateTournamentScreen({super.key});
@@ -27,9 +29,14 @@ class _CreateTournamentScreenState extends State<CreateTournamentScreen> {
         'max_players':
             int.tryParse(_maxCtrl.text) ?? (_gameType == 'ludo' ? 4 : 2),
       };
+      final auth = context.read<AuthService>();
+      final token = auth.accessToken ?? '';
       final res = await http.post(
           Uri.parse('${ApiService.baseUrl}/tournaments/create'),
-          headers: {'Content-Type': 'application/json'},
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer $token',
+          },
           body: jsonEncode(body));
       if (!mounted) return;
       if (res.statusCode == 200) {

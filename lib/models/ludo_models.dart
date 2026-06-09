@@ -24,6 +24,7 @@ class LudoRuleSettings {
   final bool threeConsecutiveSixesBringCoinOut;
   final bool threeConsecutiveOnesCutOwnCoin;
   final bool skipTurnAfterThreeOnes;
+  final bool startCoinsInBase;
 
   const LudoRuleSettings({
     this.showSafeCells = true,
@@ -37,6 +38,7 @@ class LudoRuleSettings {
     this.threeConsecutiveSixesBringCoinOut = false,
     this.threeConsecutiveOnesCutOwnCoin = false,
     this.skipTurnAfterThreeOnes = false,
+    this.startCoinsInBase = true,
   });
 
   LudoRuleSettings copyWith({
@@ -51,6 +53,7 @@ class LudoRuleSettings {
     bool? threeConsecutiveSixesBringCoinOut,
     bool? threeConsecutiveOnesCutOwnCoin,
     bool? skipTurnAfterThreeOnes,
+    bool? startCoinsInBase,
   }) {
     return LudoRuleSettings(
       showSafeCells: showSafeCells ?? this.showSafeCells,
@@ -68,6 +71,7 @@ class LudoRuleSettings {
           threeConsecutiveOnesCutOwnCoin ?? this.threeConsecutiveOnesCutOwnCoin,
       skipTurnAfterThreeOnes:
           skipTurnAfterThreeOnes ?? this.skipTurnAfterThreeOnes,
+      startCoinsInBase: startCoinsInBase ?? this.startCoinsInBase,
     );
   }
 
@@ -87,6 +91,7 @@ class LudoRuleSettings {
       threeConsecutiveOnesCutOwnCoin:
           json['threeConsecutiveOnesCutOwnCoin'] as bool? ?? false,
       skipTurnAfterThreeOnes: json['skipTurnAfterThreeOnes'] as bool? ?? false,
+      startCoinsInBase: json['startCoinsInBase'] as bool? ?? true,
     );
   }
 
@@ -103,6 +108,7 @@ class LudoRuleSettings {
       'threeConsecutiveSixesBringCoinOut': threeConsecutiveSixesBringCoinOut,
       'threeConsecutiveOnesCutOwnCoin': threeConsecutiveOnesCutOwnCoin,
       'skipTurnAfterThreeOnes': skipTurnAfterThreeOnes,
+      'startCoinsInBase': startCoinsInBase,
     };
   }
 }

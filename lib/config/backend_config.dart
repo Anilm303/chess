@@ -14,9 +14,9 @@ import 'backend_platform_stub.dart'
 /// Override with `--dart-define=API_BASE_URL=...` for local testing.
 class BackendConfig {
   static const String _productionApiBase =
-      'https://anil1515-chess-backend.hf.space/api';
+      'https://anil1515-chess-baackend.hf.space/api';
   static const String _productionSocketBase =
-      'https://anil1515-chess-backend.hf.space';
+      'https://anil1515-chess-baackend.hf.space';
 
   static const String _apiDefine = String.fromEnvironment(
     'API_BASE_URL',
@@ -39,15 +39,15 @@ class BackendConfig {
     switch (detectBackendDeviceType()) {
       case BackendDeviceType.web:
         final origin = _webOrigin();
-        return origin.isEmpty ? 'http://127.0.0.1:8000/api' : '$origin/api';
+        return origin.isEmpty ? 'http://127.0.0.1:7860/api' : '$origin/api';
       case BackendDeviceType.androidEmulator:
-        return 'http://10.0.2.2:8000/api';
+        return 'http://10.0.2.2:7860/api';
       case BackendDeviceType.androidPhysical:
         return _productionApiBase;
       case BackendDeviceType.ios:
         return _productionApiBase;
       case BackendDeviceType.desktop:
-        return 'http://127.0.0.1:8000/api';
+        return 'http://127.0.0.1:7860/api';
       case BackendDeviceType.unknown:
         return _productionApiBase;
     }
@@ -109,7 +109,6 @@ class BackendConfig {
   }
 
   static void logResolution() {
-    if (!kDebugMode) return;
     debugPrint('BackendConfig: environment=$environmentLabel');
     debugPrint('BackendConfig: apiBaseUrl=$apiBaseUrl');
     debugPrint('BackendConfig: socketBaseUrl=$socketBaseUrl');

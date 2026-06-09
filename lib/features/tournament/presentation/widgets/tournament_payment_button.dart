@@ -1,13 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'package:provider/provider.dart';
+import 'package:chess_app/features/auth/data/services/auth_service.dart';
 import '../../../../services/esewa_service.dart';
 
 class TournamentPaymentButton extends StatefulWidget {
   final String userId;
   final String? tournamentId;
   final double amount;
-  final String backendBaseUrl; // e.g. https://api.yourdomain.com
+  final String backendBaseUrl; // e.g. https://api.yourdomain.com (no trailing /api)
+
+  /// Called when the payment reaches a terminal state (paid/failed/cancelled).
+  /// Useful for refreshing the tournament list / page.
+  final VoidCallback? onPaymentCompleted;
 
   const TournamentPaymentButton({
     super.key,
@@ -15,6 +21,7 @@ class TournamentPaymentButton extends StatefulWidget {
     this.tournamentId,
     required this.amount,
     required this.backendBaseUrl,
+    this.onPaymentCompleted,
   });
 
   @override
@@ -27,64 +34,113 @@ class _TournamentPaymentButtonState extends State<TournamentPaymentButton> {
 
   Future<void> _startPayment() async {
     setState(() => _loading = true);
+    final messenger = ScaffoldMessenger.of(context);
+    final authService = Provider.of<AuthService>(context, listen: false);
+    final token = authService.accessToken;
+    final baseUrl = widget.backendBaseUrl.endsWith('/api')
+        ? widget.backendBaseUrl
+        : '${widget.backendBaseUrl}/api';
+    final statusBase = widget.backendBaseUrl.endsWith('/api')
+        ? widget.backendBaseUrl.substring(0, widget.backendBaseUrl.length - 4)
+        : widget.backendBaseUrl;
+
     try {
-      final uri =
-          Uri.parse('${widget.backendBaseUrl}/api/payments/esewa/create');
-      final res = await http.post(uri,
-          headers: {'Content-Type': 'application/json'},
-          body: json.encode({
-            'user_id': widget.userId,
-            'tournament_id': widget.tournamentId,
-            'amount': widget.amount,
-          }));
-      if (res.statusCode == 200) {
-        final body = json.decode(res.body);
-        final esewa = Map<String, String>.from(body['esewa'] as Map);
-        final paymentUrl =
-            body['payment_url'] as String? ?? 'https://esewa.com.np/epay/main';
-        final messenger = ScaffoldMessenger.of(context);
-        final success = await EsewaService.openPayment(context, esewa,
-            paymentUrl: paymentUrl);
-        // After WebView closes, call verify to confirm status
-        if (!mounted) return;
-        if (success) {
-          // optional: call verify endpoint
-          final verifyUri =
-              Uri.parse('${widget.backendBaseUrl}/api/payments/esewa/verify');
-          await http.post(verifyUri,
-              headers: {'Content-Type': 'application/json'},
-              body: json.encode({'pid': esewa['pid']}));
-          messenger.showSnackBar(const SnackBar(
-              content: Text(
-                  'Payment flow completed; check your tournament status.')));
-        } else {
-          messenger.showSnackBar(
-              const SnackBar(content: Text('Payment cancelled or failed')));
-        }
-      } else {
-        final messenger = ScaffoldMessenger.of(context);
-        messenger.showSnackBar(
-            const SnackBar(content: Text('Failed to create payment')));
+      final uri = Uri.parse('$baseUrl/payments/esewa/create');
+      final res = await http.post(
+        uri,
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          if (token != null) 'Authorization': 'Bearer $token',
+        },
+        body: json.encode({
+          'user_id': widget.userId,
+          'tournament_id': widget.tournamentId,
+          'amount': widget.amount,
+        }),
+      );
+
+      if (res.statusCode != 200) {
+        _showError(messenger, 'Failed to create payment (HTTP ${res.statusCode})');
+        return;
       }
+
+      final body = json.decode(res.body) as Map<String, dynamic>;
+      if (body['success'] != true) {
+        _showError(messenger, body['detail']?.toString() ?? 'Payment init failed');
+        return;
+      }
+
+      final rawEsewa = body['esewa'] as Map;
+      final esewa =
+          rawEsewa.map((k, v) => MapEntry(k.toString(), v.toString()));
+      final paymentUrl = body['payment_url'] as String? ??
+          'https://uat.esewa.com.np/epay/main';
+      final reused = body['reused'] == true;
+
+      if (reused) {
+        messenger.showSnackBar(const SnackBar(
+          content: Text('Resuming your previous pending payment…'),
+          duration: Duration(seconds: 2),
+        ));
+      }
+
+      if (!mounted) return;
+      final result = await EsewaService.openPayment(
+        context: context,
+        esewaParams: esewa,
+        paymentUrl: paymentUrl,
+        backendBaseUrl: statusBase,
+        bearerToken: token,
+      );
+
+      if (!mounted) return;
+      _handleResult(result, messenger);
     } catch (e) {
-      if (mounted)
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Error: $e')));
+      if (!mounted) return;
+      _showError(messenger, 'Network error: $e');
     } finally {
-      setState(() => _loading = false);
+      if (mounted) setState(() => _loading = false);
     }
+  }
+
+  void _handleResult(EsewaPaymentResult result, ScaffoldMessengerState messenger) {
+    if (result.isPaid) {
+      messenger.showSnackBar(SnackBar(
+        content: Text(result.message ?? 'Payment successful'),
+        backgroundColor: Colors.green.shade700,
+        duration: const Duration(seconds: 3),
+      ));
+    } else if (result.isFailed) {
+      _showError(messenger, result.message ?? 'Payment failed');
+    } else {
+      messenger.showSnackBar(SnackBar(
+        content: Text(result.message ?? 'Payment cancelled'),
+        duration: const Duration(seconds: 2),
+      ));
+    }
+    widget.onPaymentCompleted?.call();
+  }
+
+  void _showError(ScaffoldMessengerState messenger, String msg) {
+    messenger.showSnackBar(SnackBar(
+      content: Text(msg),
+      backgroundColor: Colors.red.shade700,
+    ));
   }
 
   @override
   Widget build(BuildContext context) {
-    return ElevatedButton(
+    return ElevatedButton.icon(
       onPressed: _loading ? null : _startPayment,
-      child: _loading
+      icon: _loading
           ? const SizedBox(
-              width: 18,
-              height: 18,
-              child: CircularProgressIndicator(strokeWidth: 2))
-          : const Text('Pay to Join'),
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
+          : const Icon(Icons.payment),
+      label: Text(_loading ? 'Processing…' : 'Pay NPR ${widget.amount.toStringAsFixed(2)}'),
     );
   }
 }

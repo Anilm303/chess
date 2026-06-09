@@ -172,7 +172,13 @@ class GameProvider extends ChangeNotifier {
       );
 
       if (movableTokens.isEmpty) {
-        _gameController!.endTurn();
+        if (gameState!.currentPlayer.type == PlayerType.human) {
+          Future.delayed(const Duration(milliseconds: 1000), () {
+            _gameController?.endTurn();
+            notifyListeners();
+          });
+        }
+        // AI handles its own delay in autoPlayAITurn
       } else if (gameState!.currentPlayer.type == PlayerType.ai) {
         _scheduleAutoPlayIfNeeded(gameState!.currentPlayer);
       }
@@ -290,9 +296,9 @@ class GameProvider extends ChangeNotifier {
 
         // Nothing to move: pass turn to avoid deadlock.
         if (movableTokens.isEmpty) {
+          await Future.delayed(const Duration(milliseconds: 1000)); // Delay to show dice roll
           _gameController!.endTurn();
           notifyListeners();
-          await Future.delayed(const Duration(milliseconds: 250));
           continue;
         }
 

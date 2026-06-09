@@ -15,8 +15,10 @@ class LudoGameLogic {
   static int get homePathSize => BoardConfig.homePositions; // 6
 
   static bool canOpenTokenOnDice(int diceValue, LudoRuleSettings rules) {
-    if (diceValue == 1) return rules.openTokenOnOne;
-    if (diceValue == 6) return rules.openTokenOnSix;
+    if (isBonusDice(diceValue, rules)) return rules.openTokenOnSix;
+    if (isPenaltyDice(diceValue, rules)) return rules.openTokenOnOne;
+    // openTokenOnOne should always work for dice value 1, regardless of start mode
+    if (diceValue == 1 && rules.openTokenOnOne) return true;
     return false;
   }
 
@@ -24,10 +26,14 @@ class LudoGameLogic {
     return BoardConfig.playerStartPositions[color] ?? 0;
   }
 
-  static bool isSafePosition(int position, PlayerColor playerColor) {
+  static bool isSafePosition(int position, PlayerColor playerColor, {
+    LudoRuleSettings rules = const LudoRuleSettings(),
+  }) {
     if (position < 0) return true; // off-board/start is safe
     if (position >= mainBoardSize)
       return true; // any home-path position is safe
+    // When showSafeCells is OFF, star positions are NOT safe (coins can be killed)
+    if (!rules.showSafeCells) return false;
     return BoardConfig.safePositions.contains(position);
   }
 
@@ -162,7 +168,7 @@ class LudoGameLogic {
       rules: rules,
     );
     if (newPos < 0 || newPos >= mainBoardSize) return false;
-    if (isSafePosition(newPos, token.playerColor)) return false;
+    if (isSafePosition(newPos, token.playerColor, rules: rules)) return false;
     return canCaptureOnPosition(
       players,
       newPos,
@@ -272,7 +278,7 @@ class LudoGameLogic {
     }
 
     // handle kills: only on main board and only if landed on non-safe cell
-    if (!token.isInHome && !isSafePosition(newPos, player.color)) {
+    if (!token.isInHome && !isSafePosition(newPos, player.color, rules: rules)) {
       final victims = getTokensAtPosition(
         gameState.players,
         newPos,
@@ -290,17 +296,16 @@ class LudoGameLogic {
       }
     }
 
-    // If the rule set does not use safe cells, retain the board state logic.
-    if (!rules.showSafeCells) {
-      // no-op for engine; painter will hide stars
-    }
-
     return outcome;
   }
 
   static bool checkWin(Player player) => player.hasWon;
 
-  static bool isDiceSix(int diceValue) => diceValue == 6;
+  static bool isBonusDice(int diceValue, LudoRuleSettings rules) =>
+      diceValue == (rules.startCoinsInBase ? 1 : 6);
+
+  static bool isPenaltyDice(int diceValue, LudoRuleSettings rules) =>
+      diceValue == (rules.startCoinsInBase ? 6 : 1);
 
   static bool isMoveLegal(
     Token token,
@@ -418,7 +423,7 @@ class GameController {
 
     final rules = gameState.rules;
 
-    if (diceValue == 1) {
+    if (LudoGameLogic.isPenaltyDice(diceValue, rules)) {
       gameState.currentPlayer.consecutiveOnes++;
     } else {
       gameState.currentPlayer.consecutiveOnes = 0;
@@ -445,7 +450,7 @@ class GameController {
 
     bool forceEndTurn = false;
 
-    if (LudoGameLogic.isDiceSix(diceValue)) {
+    if (LudoGameLogic.isBonusDice(diceValue, rules)) {
       gameState.currentPlayer.consecutiveSixes++;
 
       if (gameState.currentPlayer.consecutiveSixes >= 3) {
@@ -461,7 +466,7 @@ class GameController {
       gameState.currentPlayer.consecutiveSixes = 0;
     }
 
-    if (diceValue == 1 && gameState.currentPlayer.consecutiveOnes >= 3) {
+    if (LudoGameLogic.isPenaltyDice(diceValue, rules) && gameState.currentPlayer.consecutiveOnes >= 3) {
       if (rules.threeConsecutiveOnesCutOwnCoin) {
         _cutOwnCoin(gameState.currentPlayer);
       }

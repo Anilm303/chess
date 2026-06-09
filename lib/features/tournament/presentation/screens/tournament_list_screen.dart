@@ -52,8 +52,11 @@ class _TournamentListScreenState extends State<TournamentListScreen> {
   Future<void> _load() async {
     setState(() => _loading = true);
     try {
+      final auth = context.read<AuthService>();
+      final token = auth.accessToken ?? '';
       final res =
-          await http.get(Uri.parse('${ApiService.baseUrl}/tournaments'));
+          await http.get(Uri.parse('${ApiService.baseUrl}/tournaments'),
+          headers: {'Authorization': 'Bearer $token'});
       if (res.statusCode == 200) {
         final json = jsonDecode(res.body);
         setState(() => _tournaments = json['tournaments'] ?? []);
@@ -110,7 +113,10 @@ class _TournamentListScreenState extends State<TournamentListScreen> {
                               final res = await http.post(
                                   Uri.parse(
                                       '${ApiService.baseUrl}/tournaments/$tid/join'),
-                                  headers: {'Content-Type': 'application/json'},
+                                  headers: {
+                                    'Content-Type': 'application/json',
+                                    'Authorization': 'Bearer ${auth.accessToken ?? ''}'
+                                  },
                                   body: jsonEncode({'user_id': userId}));
                               if (res.statusCode == 200) {
                                 navigator.push(MaterialPageRoute(
@@ -132,10 +138,14 @@ class _TournamentListScreenState extends State<TournamentListScreen> {
                             // free join: call join endpoint directly
                             try {
                               final messenger = ScaffoldMessenger.of(context);
+                              final auth = context.read<AuthService>();
                               final res = await http.post(
                                   Uri.parse(
                                       '${ApiService.baseUrl}/tournaments/$tid/join'),
-                                  headers: {'Content-Type': 'application/json'},
+                                  headers: {
+                                    'Content-Type': 'application/json',
+                                    'Authorization': 'Bearer ${auth.accessToken ?? ''}'
+                                  },
                                   body: jsonEncode({'user_id': userId}));
                               if (res.statusCode == 200) {
                                 messenger.showSnackBar(const SnackBar(

@@ -6,6 +6,7 @@ import '../../../../providers/game_provider.dart';
 import '../screens/ludo_game_screen.dart';
 import '../screens/ludo_lobby_screen.dart';
 import '../../../../widgets/cancel_match_button.dart';
+import '../../../../widgets/ludo_painters.dart';
 
 enum _PlayerSlotType { none, human, computer }
 
@@ -27,6 +28,7 @@ class _LudoHomeScreenState extends State<LudoHomeScreen>
     PlayerColor.blue,
   ];
   late List<_PlayerSlotType> _playerSlots;
+  late List<String> _playerNames;
   LudoRuleSettings _rules = const LudoRuleSettings();
   int _selectedBoardIndex = 0;
   int _selectedCoins = 4;
@@ -44,6 +46,7 @@ class _LudoHomeScreenState extends State<LudoHomeScreen>
       _PlayerSlotType.none,
       _PlayerSlotType.computer,
     ];
+    _playerNames = ['Player 1', 'Player 2', 'Player 3', 'Player 4'];
     _animationController = AnimationController(
       duration: const Duration(seconds: 2),
       vsync: this,
@@ -90,6 +93,10 @@ class _LudoHomeScreenState extends State<LudoHomeScreen>
                       players: players,
                       gameMode: GameMode.online,
                       ruleSettings: _rules,
+                      initialDiceFling: _diceRollingFling,
+                      boardIndex: _selectedBoardIndex,
+                      continuousRolling: _continuousRolling,
+                      moveSpeed: _moveSpeed,
                     ),
                   ),
                 );
@@ -102,6 +109,10 @@ class _LudoHomeScreenState extends State<LudoHomeScreen>
                       players: [],
                       gameMode: GameMode.online,
                       ruleSettings: _rules,
+                      initialDiceFling: _diceRollingFling,
+                      boardIndex: _selectedBoardIndex,
+                      continuousRolling: _continuousRolling,
+                      moveSpeed: _moveSpeed,
                     ),
                   ),
                 );
@@ -296,25 +307,7 @@ class _LudoHomeScreenState extends State<LudoHomeScreen>
             const SizedBox(height: 12),
             _sectionHeader('Select Board'),
             const SizedBox(height: 8),
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    'Board ${_selectedBoardIndex + 1}',
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w800,
-                      color: Colors.black87,
-                    ),
-                  ),
-                ),
-                InkWell(
-                  onTap: () => setState(() {
-                    _selectedBoardIndex = (_selectedBoardIndex + 1) % 3;
-                  }),
-                  child: _buildBoardPreview(),
-                ),
-              ],
-            ),
+            _buildBoardSelector(),
             const SizedBox(height: 12),
             _sectionHeader('Options'),
             const SizedBox(height: 8),
@@ -350,15 +343,16 @@ class _LudoHomeScreenState extends State<LudoHomeScreen>
                 ),
               ],
             ),
+            _buildStartCoinsRow(),
             _buildRuleRow(
-              '6 also gives another turn',
+              '${_rules.startCoinsInBase ? "1" : "6"} also gives another turn',
               _rules.extraTurnOnSix,
               onTap: () => _setRules(
                 _rules.copyWith(extraTurnOnSix: !_rules.extraTurnOnSix),
               ),
             ),
             _buildRuleRow(
-              '6 also brings a coin out',
+              '${_rules.startCoinsInBase ? "1" : "6"} also brings a coin out',
               _rules.openTokenOnSix,
               onTap: () => _setRules(
                 _rules.copyWith(openTokenOnSix: !_rules.openTokenOnSix),
@@ -372,7 +366,7 @@ class _LudoHomeScreenState extends State<LudoHomeScreen>
               ),
             ),
             _buildRuleRow(
-              '3 consecutive rolls of 1 cuts one own coin',
+              '3 consecutive rolls of ${_rules.startCoinsInBase ? "6" : "1"} cuts one own coin',
               _rules.threeConsecutiveOnesCutOwnCoin,
               onTap: () => _setRules(
                 _rules.copyWith(
@@ -382,7 +376,7 @@ class _LudoHomeScreenState extends State<LudoHomeScreen>
               ),
             ),
             _buildRuleRow(
-              'Skip a turn on 3 consecutive rolls of 1',
+              'Skip a turn on 3 consecutive rolls of ${_rules.startCoinsInBase ? "6" : "1"}',
               _rules.skipTurnAfterThreeOnes,
               onTap: () => _setRules(
                 _rules.copyWith(
@@ -448,14 +442,47 @@ class _LudoHomeScreenState extends State<LudoHomeScreen>
     );
   }
 
+  void _showNameEditDialog(int index) {
+    final controller = TextEditingController(text: _playerNames[index]);
+    final colorName = _slotColors[index].toString().split('.').last;
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          title: Text('Edit ${colorName[0].toUpperCase()}${colorName.substring(1)} Player Name'),
+          content: TextField(
+            controller: controller,
+            autofocus: true,
+            decoration: const InputDecoration(
+              hintText: 'Enter name',
+              border: OutlineInputBorder(),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                setState(() {
+                  _playerNames[index] = controller.text.trim().isNotEmpty
+                      ? controller.text.trim()
+                      : 'Player ${index + 1}';
+                });
+                Navigator.pop(ctx);
+              },
+              child: const Text('Save'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   Widget _buildPlayerSlotCard(int index) {
     final color = _slotColors[index];
     final slotType = _playerSlots[index];
-    final label = slotType == _PlayerSlotType.none
-        ? 'None'
-        : slotType == _PlayerSlotType.human
-            ? 'Human ${index + 1}'
-            : 'Computer ${index + 1}';
 
     final fillColor = switch (color) {
       PlayerColor.red => const Color(0xFFF1463A),
@@ -464,88 +491,167 @@ class _LudoHomeScreenState extends State<LudoHomeScreen>
       PlayerColor.blue => const Color(0xFF3B73F2),
     };
 
-    return Container(
-      padding: const EdgeInsets.all(6),
-      decoration: BoxDecoration(
-        color: fillColor,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white, width: 2),
-        boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 4)],
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            label,
-            style: const TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.w800,
-              fontSize: 14,
+    // Dimmed color when None
+    final boxColor = slotType == _PlayerSlotType.none
+        ? fillColor.withOpacity(0.35)
+        : fillColor;
+
+    final String typeLabel;
+    final IconData typeIcon;
+    switch (slotType) {
+      case _PlayerSlotType.none:
+        typeLabel = 'None';
+        typeIcon = Icons.block;
+        break;
+      case _PlayerSlotType.human:
+        typeLabel = 'Human';
+        typeIcon = Icons.person;
+        break;
+      case _PlayerSlotType.computer:
+        typeLabel = 'Computer';
+        typeIcon = Icons.computer;
+        break;
+    }
+
+    final displayName = slotType == _PlayerSlotType.none
+        ? '---'
+        : _playerNames[index];
+
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          _playerSlots[index] = switch (slotType) {
+            _PlayerSlotType.none => _PlayerSlotType.human,
+            _PlayerSlotType.human => _PlayerSlotType.computer,
+            _PlayerSlotType.computer => _PlayerSlotType.none,
+          };
+        });
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 250),
+        curve: Curves.easeInOut,
+        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+        decoration: BoxDecoration(
+          color: boxColor,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: slotType == _PlayerSlotType.none
+                ? Colors.white38
+                : Colors.white,
+            width: 1.5,
+          ),
+        ),
+        child: Row(
+          children: [
+            Icon(typeIcon, color: Colors.white, size: 20),
+            const SizedBox(width: 8),
+            // Type label
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                color: Colors.black.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                typeLabel,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 11,
+                ),
+              ),
             ),
-          ),
-          const SizedBox(height: 6),
-          Row(
-            children: [
-              Expanded(
-                child: _slotToggleButton(
-                  'None',
-                  slotType == _PlayerSlotType.none,
-                  onTap: () => setState(() {
-                    _playerSlots[index] = _PlayerSlotType.none;
-                  }),
+            const SizedBox(width: 10),
+            // Player name
+            Expanded(
+              child: Text(
+                displayName,
+                style: TextStyle(
+                  color: slotType == _PlayerSlotType.none
+                      ? Colors.white54
+                      : Colors.white,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 14,
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            // Edit pencil icon (only when not None)
+            if (slotType != _PlayerSlotType.none)
+              GestureDetector(
+                onTap: () => _showNameEditDialog(index),
+                child: Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.25),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: const Icon(
+                    Icons.edit,
+                    color: Colors.white,
+                    size: 16,
+                  ),
                 ),
               ),
-              const SizedBox(width: 4),
-              Expanded(
-                child: _slotToggleButton(
-                  'Human',
-                  slotType == _PlayerSlotType.human,
-                  onTap: () => setState(() {
-                    _playerSlots[index] = _PlayerSlotType.human;
-                  }),
-                ),
-              ),
-              const SizedBox(width: 4),
-              Expanded(
-                child: _slotToggleButton(
-                  'Comp',
-                  slotType == _PlayerSlotType.computer,
-                  onTap: () => setState(() {
-                    _playerSlots[index] = _PlayerSlotType.computer;
-                  }),
-                ),
-              ),
-            ],
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 
-  Widget _slotToggleButton(
-    String label,
-    bool selected, {
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 4),
-        decoration: BoxDecoration(
-          color: selected ? Colors.white.withAlpha(71) : Colors.black12,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: Colors.white70),
-        ),
-        child: Text(
-          label,
-          textAlign: TextAlign.center,
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 11,
-            fontWeight: FontWeight.w800,
+  Widget _buildBoardSelector() {
+    return Row(
+      children: List.generate(4, (index) {
+        final theme = LudoBoardTheme.themes[index];
+        final isSelected = _selectedBoardIndex == index;
+        return Expanded(
+          child: GestureDetector(
+            onTap: () => setState(() => _selectedBoardIndex = index),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              curve: Curves.easeInOut,
+              margin: EdgeInsets.only(right: index < 3 ? 6 : 0),
+              padding: const EdgeInsets.all(3),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                  color: isSelected ? const Color(0xFFFFC233) : Colors.transparent,
+                  width: 2.5,
+                ),
+                boxShadow: isSelected
+                    ? [const BoxShadow(color: Color(0x55FFC233), blurRadius: 8, spreadRadius: 1)]
+                    : [],
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(7),
+                child: AspectRatio(
+                  aspectRatio: 1,
+                  child: Column(
+                    children: [
+                      Expanded(
+                        child: Row(
+                          children: [
+                            Expanded(child: Container(color: theme.red)),
+                            Expanded(child: Container(color: theme.blue)),
+                          ],
+                        ),
+                      ),
+                      Expanded(
+                        child: Row(
+                          children: [
+                            Expanded(child: Container(color: theme.green)),
+                            Expanded(child: Container(color: theme.yellow)),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
           ),
-        ),
-      ),
+        );
+      }),
     );
   }
 
@@ -697,6 +803,121 @@ class _LudoHomeScreenState extends State<LudoHomeScreen>
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStartCoinsRow() {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: const Color(0xFFE4D2A0)),
+        ),
+        child: Row(
+          children: [
+            const Expanded(
+              child: Text(
+                'Start coins at:',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            _buildStartCoinsIcon(
+              isBase: false,
+              isSelected: !_rules.startCoinsInBase,
+              onTap: () => _setRules(_rules.copyWith(startCoinsInBase: false)),
+            ),
+            const SizedBox(width: 8),
+            _buildStartCoinsIcon(
+              isBase: true,
+              isSelected: _rules.startCoinsInBase,
+              onTap: () => _setRules(_rules.copyWith(startCoinsInBase: true)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStartCoinsIcon({
+    required bool isBase,
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              color: const Color(0xFFFFC233),
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(
+                color: isSelected ? const Color(0xFF59A95A) : Colors.transparent,
+                width: 2,
+              ),
+            ),
+            child: isBase
+                ? Column(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        children: [_buildCoinDot(8), _buildCoinDot(8)],
+                      ),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        children: [_buildCoinDot(8), _buildCoinDot(8)],
+                      ),
+                    ],
+                  )
+                : Center(child: _buildCoinDot(16)),
+          ),
+          if (isSelected)
+            Positioned(
+              right: -6,
+              bottom: -6,
+              child: Container(
+                padding: const EdgeInsets.all(2),
+                decoration: const BoxDecoration(
+                  color: Color(0xFF59A95A),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.check, color: Colors.white, size: 12),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCoinDot(double size) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        shape: BoxShape.circle,
+        border: Border.all(color: Colors.black26, width: 0.5),
+      ),
+      child: Center(
+        child: Container(
+          width: size * 0.5,
+          height: size * 0.5,
+          decoration: const BoxDecoration(
+            color: Color(0xFFFFC233),
+            shape: BoxShape.circle,
+          ),
         ),
       ),
     );
@@ -1004,9 +1225,7 @@ class _LudoHomeScreenState extends State<LudoHomeScreen>
       players.add(
         Player(
           id: 'player_$i',
-          name: slotType == _PlayerSlotType.computer
-              ? 'Computer ${i + 1}'
-              : 'Player ${i + 1}',
+          name: _playerNames[i],
           color: _slotColors[i],
           type: slotType == _PlayerSlotType.computer
               ? PlayerType.ai
@@ -1024,6 +1243,10 @@ class _LudoHomeScreenState extends State<LudoHomeScreen>
           players: players,
           gameMode: GameMode.offline,
           ruleSettings: _rules,
+          initialDiceFling: _diceRollingFling,
+          boardIndex: _selectedBoardIndex,
+          continuousRolling: _continuousRolling,
+          moveSpeed: _moveSpeed,
         ),
       ),
     );
@@ -1039,9 +1262,7 @@ class _LudoHomeScreenState extends State<LudoHomeScreen>
       players.add(
         Player(
           id: 'player_$i',
-          name: slot == _PlayerSlotType.human
-              ? 'Human ${i + 1}'
-              : 'Computer ${i + 1}',
+          name: _playerNames[i],
           color: _slotColors[i],
           type:
               slot == _PlayerSlotType.human ? PlayerType.human : PlayerType.ai,
@@ -1065,6 +1286,10 @@ class _LudoHomeScreenState extends State<LudoHomeScreen>
           players: players,
           gameMode: GameMode.offline,
           ruleSettings: _rules,
+          initialDiceFling: _diceRollingFling,
+          boardIndex: _selectedBoardIndex,
+          continuousRolling: _continuousRolling,
+          moveSpeed: _moveSpeed,
         ),
       ),
     );
@@ -1096,6 +1321,10 @@ class _LudoHomeScreenState extends State<LudoHomeScreen>
           players: players,
           gameMode: GameMode.vsComputer,
           ruleSettings: _rules,
+          initialDiceFling: _diceRollingFling,
+          boardIndex: _selectedBoardIndex,
+          continuousRolling: _continuousRolling,
+          moveSpeed: _moveSpeed,
         ),
       ),
     );
