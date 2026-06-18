@@ -572,33 +572,32 @@ class MessageService extends ChangeNotifier {
         final payload = Map<String, dynamic>.from(data);
         final message = Message.fromJson(payload);
         final currentUsername = _currentUserProfile?.username;
-        final sender = payload['sender']?.toString() ?? message.sender;
-        final receiver = payload['receiver']?.toString() ?? message.receiver;
+        final sender = message.sender;
+        final receiver = message.receiver;
 
         if (currentUsername != null && receiver != currentUsername) {
           return;
         }
 
         if (_selectedUserUsername == sender) {
-          // Optimized: Add to local conversation immediately, don't refetch everything
-          if (!_currentConversation.any((m) => m.id == message.id)) {
+          // Optimized: Add to local conversation immediately
+          bool alreadyExists = _currentConversation.any((m) => m.id == message.id);
+          if (!alreadyExists) {
             _currentConversation.add(message);
             notifyListeners();
           }
           // Mark as read in background
-          http.put(
-            Uri.parse(
-              '${ApiService.baseUrl}/messages/conversation/$sender/mark-read',
-            ),
-            headers: {'Authorization': 'Bearer $accessToken'},
-          );
+          final token = _socketToken;
+          if (token != null) {
+            http.put(
+              Uri.parse('${ApiService.baseUrl}/messages/conversation/$sender/mark-read'),
+              headers: {'Authorization': 'Bearer $token'},
+            );
+          }
         } else {
           _upsertConversationPreview(
             username: sender,
-            lastMessage: _previewTextForMessage(
-              message.messageType,
-              message.text,
-            ),
+            lastMessage: _previewTextForMessage(message.messageType, message.text),
             lastMessageTime: message.timestamp.toIso8601String(),
             unreadIncrement: 1,
           );

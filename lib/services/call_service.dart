@@ -564,6 +564,13 @@ class CallService extends ChangeNotifier {
   Future<void> _prepareLocalMedia(bool videoCall) async {
     _log('🎬 Preparing local media (video=$videoCall)');
 
+    // Ensure audio session is configured for communication
+    try {
+      await Helper.setSpeakerphoneOn(true);
+    } catch (e) {
+      _log('⚠️ Audio session config failed: $e');
+    }
+
     final permissions = <Permission>[Permission.microphone];
     if (videoCall) {
       permissions.add(Permission.camera);
@@ -676,6 +683,7 @@ class CallService extends ChangeNotifier {
           },
         ],
         'iceTransportPolicy': 'all',
+        'iceCandidatePoolSize': 10,
         'sdpSemantics': 'unified-plan',
       });
 
@@ -686,15 +694,16 @@ class CallService extends ChangeNotifier {
           if (_status != CallStatus.connected) {
             _status = CallStatus.connected;
             _startCallDurationTimer();
+            // Force speaker/audio routing on connect
+            toggleSpeaker(); 
             notifyListeners();
           }
         }
-        if (state == RTCIceConnectionState.RTCIceConnectionStateDisconnected ||
-            state == RTCIceConnectionState.RTCIceConnectionStateFailed) {
-          _log(
-            '⚠️ Connection lost or failed. Triggering reconnect logic if possible.',
-          );
-          // You could add a reconnect event emit here.
+        if (state == RTCIceConnectionState.RTCIceConnectionStateFailed) {
+          _log('❌ ICE Connection Failed');
+          _status = CallStatus.failed;
+          _error = 'Connection failed. Please check your internet.';
+          notifyListeners();
         }
       };
 
@@ -728,6 +737,9 @@ class CallService extends ChangeNotifier {
         _log(
           '📥 Track received: ${event.track.kind}, enabled=${event.track.enabled}',
         );
+        
+        // Ensure track is enabled
+        event.track.enabled = true;
         _log('   Streams count: ${event.streams.length}');
         _log('   Track ID: ${event.track.id}');
 
