@@ -18,6 +18,7 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_PHONE_CALL" />
 
     <application
+        android:debuggable="false"
         android:label="chess_app"
         android:name="${applicationName}"
         android:usesCleartextTraffic="true"

@@ -77,7 +77,7 @@ class _TournamentWaitingScreenState extends State<TournamentWaitingScreen> {
     super.initState();
     final auth = Provider.of<AuthService>(context, listen: false);
     _myUserId = auth.currentUser?.username;
-    _poll = Timer.periodic(const Duration(seconds: 3), (_) => _refresh());
+    _poll = Timer.periodic(const Duration(seconds: 5), (_) => _refresh());
     _refresh();
     // also check the wallet after a short delay (winner detection)
     _pollBalance();

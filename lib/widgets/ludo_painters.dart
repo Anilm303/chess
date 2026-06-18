@@ -67,6 +67,7 @@ class LudoBoardPainter extends CustomPainter {
   final Map<String, dynamic>? lastMove;
   final bool showSafeCells;
   final int boardIndex;
+  final double turnHighlight;
 
   LudoBoardPainter({
     required this.gameState,
@@ -74,6 +75,7 @@ class LudoBoardPainter extends CustomPainter {
     this.lastMove,
     this.showSafeCells = true,
     this.boardIndex = 0,
+    this.turnHighlight = 0.0,
   });
 
   LudoBoardTheme get _theme => LudoBoardTheme.themes[boardIndex.clamp(0, LudoBoardTheme.themes.length - 1)];
@@ -150,24 +152,27 @@ class LudoBoardPainter extends CustomPainter {
   }
 
   void _drawBoard(Canvas canvas, double cellSize) {
-    // Draw thick border around the entire board
+    // Draw thick border around the entire board (Frame)
     final boardRect = Rect.fromLTWH(0, 0, 15 * cellSize, 15 * cellSize);
     
     // Draw background using theme color
-    final woodPaint = Paint()..color = _theme.pathBg;
+    final woodPaint = Paint()..color = _theme.boardBg;
     canvas.drawRect(boardRect, woodPaint);
 
+    // Draw Wood Texture Grain
+    _drawWoodGrain(canvas, boardRect, cellSize);
+
     final borderPaint = Paint()
-      ..color = Colors.black
+      ..color = const Color(0xFF3E2723) // Dark brown frame
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 3;
+      ..strokeWidth = 6;
     canvas.drawRect(boardRect, borderPaint);
 
     // Grid lines for the path cells
     final linePaint = Paint()
-      ..color = Colors.black
+      ..color = Colors.black.withOpacity(0.8)
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 1;
+      ..strokeWidth = 1.2;
 
     for (int x = 0; x < 15; x++) {
       for (int y = 0; y < 15; y++) {
@@ -193,13 +198,39 @@ class LudoBoardPainter extends CustomPainter {
     _colorSpecialCells(canvas, cellSize);
 
     // Draw 4 home bases
-    _drawHomeBase(canvas, cellSize, 0, 9, PlayerColor.red);
-    _drawHomeBase(canvas, cellSize, 0, 0, PlayerColor.green);
-    _drawHomeBase(canvas, cellSize, 9, 0, PlayerColor.yellow);
-    _drawHomeBase(canvas, cellSize, 9, 9, PlayerColor.blue);
+    _drawHomeBase(canvas, cellSize, 0, 9, PlayerColor.blue); // BL
+    _drawHomeBase(canvas, cellSize, 0, 0, PlayerColor.green); // TL
+    _drawHomeBase(canvas, cellSize, 9, 0, PlayerColor.red); // TR
+    _drawHomeBase(canvas, cellSize, 9, 9, PlayerColor.yellow); // BR
 
     // Draw Center
     _drawCenter(canvas, cellSize);
+    
+    // Draw Arrows
+    _drawArrows(canvas, cellSize);
+  }
+
+  void _drawWoodGrain(Canvas canvas, Rect rect, double cellSize) {
+    final paint = Paint()
+      ..color = Colors.black.withOpacity(0.06)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.0;
+
+    final random = Random(42); // Fixed seed for consistent grain
+    for (int i = 0; i < 40; i++) {
+      final y = rect.top + random.nextDouble() * rect.height;
+      final path = Path();
+      path.moveTo(rect.left, y);
+      
+      double curX = rect.left;
+      double curY = y;
+      while (curX < rect.right) {
+        curX += 20 + random.nextDouble() * 100;
+        curY += (random.nextDouble() - 0.5) * 15;
+        path.quadraticBezierTo(curX - 25, curY + 10, curX, curY);
+      }
+      canvas.drawPath(path, paint);
+    }
   }
 
   void _drawHomeBase(
@@ -218,31 +249,49 @@ class LudoBoardPainter extends CustomPainter {
     );
     
     // Outer colored rounded rectangle
-    final rrect = RRect.fromRectAndRadius(rect, Radius.circular(cellSize * 0.5));
+    final rrect = RRect.fromRectAndRadius(rect, Radius.circular(cellSize * 0.4));
     canvas.drawRRect(rrect, Paint()..color = color);
+
+    // Blinking effect for current turn
+    final bool isMyTurn = gameState.currentPlayer.color == pColor;
+    if (isMyTurn) {
+      final highlightPaint = Paint()
+        ..color = Colors.white.withOpacity(0.3 + (turnHighlight * 0.4))
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 3 + (turnHighlight * 5);
+      canvas.drawRRect(rrect, highlightPaint);
+      
+      final glowPaint = Paint()
+        ..color = color.withOpacity(0.2 + (turnHighlight * 0.3))
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 8 + (turnHighlight * 10)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8);
+      canvas.drawRRect(rrect, glowPaint);
+    }
+
     canvas.drawRRect(
       rrect,
       Paint()
-        ..color = Colors.black
+        ..color = isMyTurn ? Colors.white : Colors.black87
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 3,
+        ..strokeWidth = isMyTurn ? 3 : 2.5,
     );
 
-    // Inner white rounded square
+    // Inner white rounded square (larger as per image)
     final innerRRect = RRect.fromRectAndRadius(
       Rect.fromLTWH(
-        (col + 1) * cellSize,
-        (row + 1.2) * cellSize,
-        4 * cellSize,
-        3.6 * cellSize,
+        (col + 0.8) * cellSize,
+        (row + 1.0) * cellSize,
+        4.4 * cellSize,
+        4.0 * cellSize,
       ),
-      Radius.circular(cellSize * 0.8),
+      Radius.circular(cellSize * 1.0),
     );
     canvas.drawRRect(innerRRect, Paint()..color = Colors.white);
 
-    // 4 token spots (concentric rings)
+    // 4 token spots (concentric rings as per image)
     for (int i = 0; i < 4; i++) {
-      final dx = (i % 2 == 0) ? 1.5 : 3.5;
+      final dx = (i % 2 == 0) ? 1.6 : 3.4;
       final dy = (i < 2) ? 1.6 : 3.4;
       final center = Offset((col + dx + 0.5) * cellSize, (row + dy + 0.5) * cellSize);
       
@@ -258,52 +307,62 @@ class LudoBoardPainter extends CustomPainter {
     } catch (_) {}
     
     if (p != null) {
-      // Calculate completion percentage based on tokens reached home
-      int tokensInHome = p.tokens.where((t) => t.position == 57 || t.isInHome).length;
-      double pct = p.tokenCount > 0 ? (tokensInHome / p.tokenCount) * 100 : 0.0;
-      String pctStr = pct == 0 ? "0%" : "${pct.toStringAsFixed(1)}%";
-      if (pctStr.endsWith(".0%")) pctStr = pctStr.replaceAll(".0%", "%");
+      const int maxStepsPerToken = 57;
+      int totalStepsMoved = 0;
+      for (final t in p.tokens) {
+        if (t.position >= 0) {
+          final int startPos = BoardConfig.playerStartPositions[p.color] ?? 0;
+          if (t.position >= BoardConfig.homePathStart) {
+            totalStepsMoved += (BoardConfig.totalPositions) + (t.position - BoardConfig.homePathStart);
+          } else {
+            int steps = t.position - startPos;
+            if (steps < 0) steps += BoardConfig.totalPositions;
+            totalStepsMoved += steps;
+          }
+        }
+      }
+      final int maxTotalSteps = p.tokenCount * maxStepsPerToken;
+      double pct = maxTotalSteps > 0 ? (totalStepsMoved / maxTotalSteps) * 100 : 0.0;
+      if (pct > 100) pct = 100;
+      String pctStr = "${pct.toStringAsFixed(1)}%";
 
-      // Draw Percentage
+      // Draw Percentage at Top
       final pctPainter = TextPainter(
         text: TextSpan(
           text: pctStr,
           style: TextStyle(
             color: Colors.white,
             fontWeight: FontWeight.bold,
-            fontSize: cellSize * 0.5,
+            fontSize: cellSize * 0.6,
+            shadows: const [Shadow(color: Colors.black26, blurRadius: 2, offset: Offset(1, 1))],
           ),
         ),
         textDirection: TextDirection.ltr,
       );
       pctPainter.layout();
-      pctPainter.paint(
-        canvas, 
-        Offset(rect.center.dx - pctPainter.width / 2, rect.top + cellSize * 0.2),
-      );
+      pctPainter.paint(canvas, Offset(rect.center.dx - pctPainter.width / 2, rect.top + cellSize * 0.15));
 
-      // Draw Name
+      // Draw Name at Bottom
+      final String displayName = p.type == PlayerType.ai ? 'Computer' : p.name;
       final namePainter = TextPainter(
         text: TextSpan(
-          text: p.name,
+          text: displayName,
           style: TextStyle(
             color: Colors.white,
             fontWeight: FontWeight.bold,
-            fontSize: cellSize * 0.55,
+            fontSize: cellSize * 0.65,
+            shadows: const [Shadow(color: Colors.black26, blurRadius: 2, offset: Offset(1, 1))],
           ),
         ),
         textDirection: TextDirection.ltr,
       );
       namePainter.layout();
-      namePainter.paint(
-        canvas, 
-        Offset(rect.center.dx - namePainter.width / 2, rect.bottom - cellSize * 0.8),
-      );
+      namePainter.paint(canvas, Offset(rect.center.dx - namePainter.width / 2, rect.bottom - cellSize * 0.85));
     }
   }
 
   void _colorSpecialCells(Canvas canvas, double cellSize) {
-    void paintCell(Offset coord, Color color, {bool isStar = false, bool isStart = false}) {
+    void paintCell(Offset coord, Color color, {bool isStar = false}) {
       final rect = Rect.fromLTWH(
         coord.dx * cellSize,
         coord.dy * cellSize,
@@ -314,16 +373,18 @@ class LudoBoardPainter extends CustomPainter {
       canvas.drawRect(
         rect,
         Paint()
-          ..color = Colors.black
+          ..color = Colors.black.withOpacity(0.8)
           ..style = PaintingStyle.stroke
-          ..strokeWidth = 1,
+          ..strokeWidth = 1.2,
       );
 
       if (isStar) {
+        // Star Background Circle
+        canvas.drawCircle(rect.center, cellSize * 0.42, Paint()..color = Colors.black.withOpacity(0.12));
         _drawStar(
           canvas,
           rect.center,
-          cellSize * 0.35,
+          cellSize * 0.38,
           Paint()..color = Colors.white,
         );
       }
@@ -333,7 +394,7 @@ class LudoBoardPainter extends CustomPainter {
     BoardConfig.playerStartPositions.forEach((color, startIdx) {
       final token = Token(id: 0, playerColor: color, position: startIdx);
       final coord = gridCoordinateForToken(token);
-      paintCell(coord, _getPlayerColor(color), isStart: true);
+      paintCell(coord, _getPlayerColor(color));
     });
 
     // Paint safe positions (stars)
@@ -341,9 +402,8 @@ class LudoBoardPainter extends CustomPainter {
       for (final idx in BoardConfig.safePositions) {
         final tmp = Token(id: 0, playerColor: PlayerColor.red, position: idx);
         final coord = gridCoordinateForToken(tmp);
-        // Only draw star if it's not a start square (start squares are already colored)
         bool isStart = BoardConfig.playerStartPositions.values.contains(idx);
-        paintCell(coord, isStart ? _getPlayerColor(BoardConfig.playerStartPositions.entries.firstWhere((e) => e.value == idx).key) : const Color(0xFFC9A676), isStar: true);
+        paintCell(coord, isStart ? _getPlayerColor(BoardConfig.playerStartPositions.entries.firstWhere((e) => e.value == idx).key) : Colors.transparent, isStar: true);
       }
     }
 
@@ -355,46 +415,97 @@ class LudoBoardPainter extends CustomPainter {
         paintCell(coord, _getPlayerColor(color));
       }
     }
-    
-    // Draw arrows
-    _drawArrows(canvas, cellSize);
   }
 
   void _drawArrows(Canvas canvas, double cellSize) {
     final paint = Paint()
-      ..color = Colors.black
+      ..color = Colors.black87
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.5;
+      ..strokeWidth = 2.2;
 
-    void drawArrow(Offset start, Offset end) {
-      canvas.drawLine(start, end, paint);
-      // Arrow head
-      final double arrowSize = cellSize * 0.2;
-      final double angle = atan2(end.dy - start.dy, end.dx - start.dx);
+    void drawFeathers(Offset start, double angle) {
+      final fPaint = Paint()
+        ..color = Colors.black87
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.8;
+      final double fLen = cellSize * 0.28;
+      final double fAngle = pi / 3.0; // Wider angle
+      
+      canvas.drawLine(start, Offset(start.dx - fLen * cos(angle - fAngle), start.dy - fLen * sin(angle - fAngle)), fPaint);
+      canvas.drawLine(start, Offset(start.dx - fLen * cos(angle + fAngle), start.dy - fLen * sin(angle + fAngle)), fPaint);
+    }
+
+    void drawHead(Offset end, double angle) {
+      final double arrowSize = cellSize * 0.32;
       canvas.drawLine(end, Offset(end.dx - arrowSize * cos(angle - pi / 6), end.dy - arrowSize * sin(angle - pi / 6)), paint);
       canvas.drawLine(end, Offset(end.dx - arrowSize * cos(angle + pi / 6), end.dy - arrowSize * sin(angle + pi / 6)), paint);
     }
-    
-    // Curving entry arrows
-    // Red (Left)
-    drawArrow(Offset(0.5 * cellSize, 8.5 * cellSize), Offset(1.5 * cellSize, 8.5 * cellSize));
-    canvas.drawArc(Rect.fromLTWH(0.5 * cellSize, 7.5 * cellSize, cellSize, cellSize), pi/2, -pi, false, paint);
-    drawArrow(Offset(1.5 * cellSize, 7.5 * cellSize), Offset(2.5 * cellSize, 7.5 * cellSize));
-    
-    // Blue (Right)
-    drawArrow(Offset(14.5 * cellSize, 6.5 * cellSize), Offset(13.5 * cellSize, 6.5 * cellSize));
-    canvas.drawArc(Rect.fromLTWH(13.5 * cellSize, 6.5 * cellSize, cellSize, cellSize), -pi/2, -pi, false, paint);
-    drawArrow(Offset(13.5 * cellSize, 7.5 * cellSize), Offset(12.5 * cellSize, 7.5 * cellSize));
 
-    // Green (Top)
-    drawArrow(Offset(6.5 * cellSize, 0.5 * cellSize), Offset(6.5 * cellSize, 1.5 * cellSize));
-    canvas.drawArc(Rect.fromLTWH(6.5 * cellSize, 0.5 * cellSize, cellSize, cellSize), 0, -pi, false, paint);
-    drawArrow(Offset(7.5 * cellSize, 1.5 * cellSize), Offset(7.5 * cellSize, 2.5 * cellSize));
+    // 1. EXIT ARROWS (90 Degree sweeping turn from base into start cell)
+    void drawExit(Offset start, Offset corner, Offset end, double sAng, double eAng) {
+      final path = Path()..moveTo(start.dx, start.dy)..quadraticBezierTo(corner.dx, corner.dy, end.dx, end.dy);
+      canvas.drawPath(path, paint);
+      
+      // Prominent circle at the tile junction
+      canvas.drawCircle(
+        corner, 
+        cellSize * 0.42, 
+        Paint()..color = Colors.black87..style = PaintingStyle.stroke..strokeWidth = 1.5
+      );
+      
+      drawFeathers(start, sAng);
+      drawHead(end, eAng);
+    }
 
-    // Yellow (Bottom)
-    drawArrow(Offset(8.5 * cellSize, 14.5 * cellSize), Offset(8.5 * cellSize, 13.5 * cellSize));
-    canvas.drawArc(Rect.fromLTWH(7.5 * cellSize, 13.5 * cellSize, cellSize, cellSize), pi, -pi, false, paint);
-    drawArrow(Offset(7.5 * cellSize, 13.5 * cellSize), Offset(7.5 * cellSize, 12.5 * cellSize));
+    // Green (Top-Left): curves from bottom of base into cell (1, 6)
+    drawExit(Offset(1.5 * cellSize, 4.8 * cellSize), Offset(1.5 * cellSize, 6.5 * cellSize), Offset(2.5 * cellSize, 6.5 * cellSize), pi/2, 0);
+    // Red (Top-Right): curves from left of base into cell (8, 1)
+    drawExit(Offset(10.2 * cellSize, 1.5 * cellSize), Offset(8.5 * cellSize, 1.5 * cellSize), Offset(8.5 * cellSize, 2.5 * cellSize), pi, pi/2);
+    // Yellow (Bottom-Right): curves from top of base into cell (13, 8)
+    drawExit(Offset(13.5 * cellSize, 10.2 * cellSize), Offset(13.5 * cellSize, 8.5 * cellSize), Offset(12.5 * cellSize, 8.5 * cellSize), -pi/2, pi);
+    // Blue (Bottom-Left): curves from right of base into cell (6, 13)
+    drawExit(Offset(4.8 * cellSize, 13.5 * cellSize), Offset(6.5 * cellSize, 13.5 * cellSize), Offset(6.5 * cellSize, 12.5 * cellSize), 0, -pi/2);
+
+    // 2. HOME ENTRY U-TURNS (Tight semi-circular turns at board edges)
+    void drawEntry(Offset start, Offset c1, Offset c2, Offset end, double sAng, double eAng) {
+      final path = Path()..moveTo(start.dx, start.dy)..cubicTo(c1.dx, c1.dy, c2.dx, c2.dy, end.dx, end.dy);
+      canvas.drawPath(path, paint);
+      drawFeathers(start, sAng);
+      drawHead(end, eAng);
+    }
+
+    // Green (Left Edge): tight turn from row 6 to 7
+    drawEntry(
+      Offset(0.6 * cellSize, 6.2 * cellSize), 
+      Offset(-0.4 * cellSize, 6.2 * cellSize), 
+      Offset(-0.4 * cellSize, 7.5 * cellSize), 
+      Offset(0.8 * cellSize, 7.5 * cellSize), 
+      pi/2, 0
+    );
+    // Red (Top Edge): tight turn from col 8 to 7
+    drawEntry(
+      Offset(8.8 * cellSize, 0.6 * cellSize), 
+      Offset(8.8 * cellSize, -0.4 * cellSize), 
+      Offset(7.5 * cellSize, -0.4 * cellSize), 
+      Offset(7.5 * cellSize, 0.8 * cellSize), 
+      pi, pi/2
+    );
+    // Yellow (Right Edge): tight turn from row 8 to 7
+    drawEntry(
+      Offset(14.4 * cellSize, 8.8 * cellSize), 
+      Offset(15.4 * cellSize, 8.8 * cellSize), 
+      Offset(15.4 * cellSize, 7.5 * cellSize), 
+      Offset(14.2 * cellSize, 7.5 * cellSize), 
+      -pi/2, pi
+    );
+    // Blue (Bottom Edge): tight turn from col 6 to 7
+    drawEntry(
+      Offset(6.2 * cellSize, 14.4 * cellSize), 
+      Offset(6.2 * cellSize, 15.4 * cellSize), 
+      Offset(7.5 * cellSize, 15.4 * cellSize), 
+      Offset(7.5 * cellSize, 14.2 * cellSize), 
+      0, -pi/2
+    );
   }
 
   void _drawCenter(Canvas canvas, double cellSize) {
@@ -406,53 +517,59 @@ class LudoBoardPainter extends CustomPainter {
     );
     final center = rect.center;
 
-    // Draw curvy cross like the screenshot
-    final pathRed = Path()
-      ..moveTo(rect.left, rect.bottom)
-      ..lineTo(rect.left, rect.bottom - 1.5 * cellSize)
-      ..quadraticBezierTo(center.dx - 0.5 * cellSize, center.dy + 0.5 * cellSize, center.dx, center.dy)
-      ..quadraticBezierTo(center.dx - 0.5 * cellSize, rect.bottom - 0.5 * cellSize, rect.right - 1.5 * cellSize, rect.bottom)
-      ..close();
-    canvas.drawPath(pathRed, Paint()..color = Colors.red);
-
-    final pathGreen = Path()
+    // Left triangle (Green)
+    final pathLeft = Path()
       ..moveTo(rect.left, rect.top)
-      ..lineTo(rect.left + 1.5 * cellSize, rect.top)
-      ..quadraticBezierTo(center.dx - 0.5 * cellSize, center.dy - 0.5 * cellSize, center.dx, center.dy)
-      ..quadraticBezierTo(rect.left + 0.5 * cellSize, center.dy - 0.5 * cellSize, rect.left, rect.bottom - 1.5 * cellSize)
+      ..lineTo(rect.left, rect.bottom)
+      ..lineTo(center.dx, center.dy)
       ..close();
-    canvas.drawPath(pathGreen, Paint()..color = Colors.green);
+    canvas.drawPath(pathLeft, Paint()..color = _getPlayerColor(PlayerColor.green));
 
-    final pathYellow = Path()
-      ..moveTo(rect.right, rect.bottom)
-      ..lineTo(rect.right - 1.5 * cellSize, rect.bottom)
-      ..quadraticBezierTo(center.dx + 0.5 * cellSize, center.dy + 0.5 * cellSize, center.dx, center.dy)
-      ..quadraticBezierTo(rect.right - 0.5 * cellSize, center.dy + 0.5 * cellSize, rect.right, rect.top + 1.5 * cellSize)
+    // Top triangle (Red)
+    final pathTop = Path()
+      ..moveTo(rect.left, rect.top)
+      ..lineTo(rect.right, rect.top)
+      ..lineTo(center.dx, center.dy)
       ..close();
-    canvas.drawPath(pathYellow, Paint()..color = Colors.yellow[700]!);
+    canvas.drawPath(pathTop, Paint()..color = _getPlayerColor(PlayerColor.red));
 
-    final pathBlue = Path()
+    // Right triangle (Yellow)
+    final pathRight = Path()
       ..moveTo(rect.right, rect.top)
-      ..lineTo(rect.left + 1.5 * cellSize, rect.top)
-      ..quadraticBezierTo(center.dx + 0.5 * cellSize, center.dy - 0.5 * cellSize, center.dx, center.dy)
-      ..quadraticBezierTo(center.dx + 0.5 * cellSize, rect.top + 0.5 * cellSize, rect.right, rect.top + 1.5 * cellSize)
+      ..lineTo(rect.right, rect.bottom)
+      ..lineTo(center.dx, center.dy)
       ..close();
-    canvas.drawPath(pathBlue, Paint()..color = Colors.blue);
+    canvas.drawPath(pathRight, Paint()..color = _getPlayerColor(PlayerColor.yellow));
 
-    // Center outlines
+    // Bottom triangle (Blue)
+    final pathBottom = Path()
+      ..moveTo(rect.left, rect.bottom)
+      ..lineTo(rect.right, rect.bottom)
+      ..lineTo(center.dx, center.dy)
+      ..close();
+    canvas.drawPath(pathBottom, Paint()..color = _getPlayerColor(PlayerColor.blue));
+
+    // Black outlines for the triangles
     final linePaint = Paint()
       ..color = Colors.black
       ..style = PaintingStyle.stroke
       ..strokeWidth = 2;
-    canvas.drawPath(pathRed, linePaint);
-    canvas.drawPath(pathGreen, linePaint);
-    canvas.drawPath(pathYellow, linePaint);
-    canvas.drawPath(pathBlue, linePaint);
+    canvas.drawPath(pathBottom, linePaint);
+    canvas.drawPath(pathLeft, linePaint);
+    canvas.drawPath(pathTop, linePaint);
+    canvas.drawPath(pathRight, linePaint);
     canvas.drawRect(rect, linePaint);
-    
-    // Draw central colored circle in the cross intersection
-    canvas.drawCircle(center, cellSize * 0.4, Paint()..color = Colors.grey[200]!);
-    canvas.drawCircle(center, cellSize * 0.4, linePaint);
+
+    // Draw circular slots in the middle of each triangle where finished tokens will sit
+    final slotPaint = Paint()
+      ..color = Colors.black.withOpacity(0.6)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.5;
+
+    canvas.drawCircle(Offset(6.5 * cellSize, 7.5 * cellSize), cellSize * 0.35, slotPaint); // Green (Left)
+    canvas.drawCircle(Offset(7.5 * cellSize, 6.5 * cellSize), cellSize * 0.35, slotPaint); // Yellow (Top)
+    canvas.drawCircle(Offset(8.5 * cellSize, 7.5 * cellSize), cellSize * 0.35, slotPaint); // Blue (Right)
+    canvas.drawCircle(Offset(7.5 * cellSize, 8.5 * cellSize), cellSize * 0.35, slotPaint); // Red (Bottom)
   }
 
   void _drawStar(Canvas canvas, Offset center, double size, Paint paint) {
@@ -480,13 +597,13 @@ class LudoBoardPainter extends CustomPainter {
       // In home stretch (52-57)
       int steps = token.position - 51; // position 52 -> step 1
       switch (token.playerColor) {
-        case PlayerColor.red:
+        case PlayerColor.blue:
           return Offset(7, 14.0 - steps); // Moving UP to 7,8
         case PlayerColor.green:
           return Offset(0.0 + steps, 7); // Moving RIGHT to 6,7
-        case PlayerColor.yellow:
+        case PlayerColor.red:
           return Offset(7, 0.0 + steps); // Moving DOWN to 7,6
-        case PlayerColor.blue:
+        case PlayerColor.yellow:
           return Offset(14.0 - steps, 7); // Moving LEFT to 8,7
       }
     }
@@ -500,7 +617,7 @@ class LudoBoardPainter extends CustomPainter {
       // In home base
       double baseX = 0, baseY = 0;
       switch (token.playerColor) {
-        case PlayerColor.red:
+        case PlayerColor.blue:
           baseX = 0;
           baseY = 9;
           break;
@@ -508,11 +625,11 @@ class LudoBoardPainter extends CustomPainter {
           baseX = 0;
           baseY = 0;
           break;
-        case PlayerColor.yellow:
+        case PlayerColor.red:
           baseX = 9;
           baseY = 0;
           break;
-        case PlayerColor.blue:
+        case PlayerColor.yellow:
           baseX = 9;
           baseY = 9;
           break;
@@ -523,13 +640,13 @@ class LudoBoardPainter extends CustomPainter {
     } else if (token.position >= 52) {
       int steps = token.position - 51; // position 52 -> step 1
       switch (token.playerColor) {
-        case PlayerColor.red:
+        case PlayerColor.blue:
           return Offset(7, 14.0 - steps);
         case PlayerColor.green:
           return Offset(0.0 + steps, 7);
-        case PlayerColor.yellow:
+        case PlayerColor.red:
           return Offset(7, 0.0 + steps);
-        case PlayerColor.blue:
+        case PlayerColor.yellow:
           return Offset(14.0 - steps, 7);
       }
     }
@@ -539,7 +656,7 @@ class LudoBoardPainter extends CustomPainter {
   Offset _getHomeBaseCoordinate(Token token) {
     double baseX = 0, baseY = 0;
     switch (token.playerColor) {
-      case PlayerColor.red:
+      case PlayerColor.blue:
         baseX = 0;
         baseY = 9;
         break; // Bottom-Left
@@ -547,11 +664,11 @@ class LudoBoardPainter extends CustomPainter {
         baseX = 0;
         baseY = 0;
         break; // Top-Left
-      case PlayerColor.yellow:
+      case PlayerColor.red:
         baseX = 9;
         baseY = 0;
         break; // Top-Right
-      case PlayerColor.blue:
+      case PlayerColor.yellow:
         baseX = 9;
         baseY = 9;
         break; // Bottom-Right

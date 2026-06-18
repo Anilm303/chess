@@ -39,6 +39,7 @@ class _LudoGameScreenState extends State<LudoGameScreen>
   late AnimationController _tokenAnimationController;
   late AnimationController _spawnAnimationController;
   late AnimationController _extraTurnController;
+  late AnimationController _turnBlinkController;
   late GameProvider gameProvider;
   bool _undoDialogVisible = false;
   bool _debugOverlay = false;
@@ -51,6 +52,7 @@ class _LudoGameScreenState extends State<LudoGameScreen>
   List<Map<String, dynamic>> _activeSpawnedTokens = [];
   int _initialDiceValue = 1;
   bool _isAutoRollingDice = false;
+  bool _isAutoMovingToken = false;
 
   @override
   void initState() {
@@ -133,6 +135,11 @@ class _LudoGameScreenState extends State<LudoGameScreen>
       }
     });
 
+    _turnBlinkController = AnimationController(
+      duration: const Duration(milliseconds: 1000),
+      vsync: this,
+    )..repeat(reverse: true);
+
     // Initialize game in provider
     WidgetsBinding.instance.addPostFrameCallback((_) {
       gameProvider = context.read<GameProvider>();
@@ -160,11 +167,16 @@ class _LudoGameScreenState extends State<LudoGameScreen>
     }
     _spawnAnimationController.dispose();
     _extraTurnController.dispose();
+    _turnBlinkController.dispose();
     super.dispose();
   }
 
   void _onGameProviderChanged() {
     final prov = context.read<GameProvider>();
+    final gs = prov.gameState;
+    if (gs != null && gs.diceRolled && gs.diceValue > 0) {
+      _initialDiceValue = gs.diceValue;
+    }
     final lm = prov.lastMoveEvent;
 
     // Play dice animation when server rolled dice
@@ -272,13 +284,13 @@ class _LudoGameScreenState extends State<LudoGameScreen>
 
     // Continuous rolling check
     final state = prov.gameState;
-    if (state != null && state.isPlaying && widget.continuousRolling) {
+    if (state != null && state.isPlaying) {
       final currentPlayer = state.currentPlayer;
       final isLocalPlayerTurn = widget.gameMode == GameMode.offline
           ? (currentPlayer.type == PlayerType.human)
           : (currentPlayer.id == prov.currentUserId);
 
-      if (isLocalPlayerTurn && !state.diceRolled && !_isAutoRollingDice) {
+      if (widget.continuousRolling && isLocalPlayerTurn && !state.diceRolled && !_isAutoRollingDice) {
         _isAutoRollingDice = true;
         Future.delayed(const Duration(milliseconds: 600), () {
           if (mounted) {
@@ -290,6 +302,36 @@ class _LudoGameScreenState extends State<LudoGameScreen>
           }
           _isAutoRollingDice = false;
         });
+      }
+
+      // Auto-move single token for local human player
+      if (isLocalPlayerTurn && state.diceRolled && state.canMove && !_isAutoMovingToken) {
+        final movableTokens = prov.getMovableTokens();
+        final uniquePositions = movableTokens.map((t) => t.position).toSet();
+
+        if (uniquePositions.length == 1) {
+          _isAutoMovingToken = true;
+          // Wait 900ms to let the dice animation finish
+          Future.delayed(const Duration(milliseconds: 900), () {
+            if (mounted) {
+              final currentProv = context.read<GameProvider>();
+              final currentState = currentProv.gameState;
+              if (currentState != null &&
+                  currentState.isPlaying &&
+                  currentState.currentPlayer.id == currentPlayer.id &&
+                  currentState.diceRolled &&
+                  currentState.canMove) {
+                
+                final currentMovable = currentProv.getMovableTokens();
+                if (currentMovable.isNotEmpty) {
+                  currentProv.moveToken(currentMovable.first);
+                  context.read<SoundService>().playSound(GameSound.tokenMove);
+                }
+              }
+              _isAutoMovingToken = false;
+            }
+          });
+        }
       }
     }
   }
@@ -493,16 +535,22 @@ class _LudoGameScreenState extends State<LudoGameScreen>
               clipBehavior: Clip.none,
               children: [
                 // Board painting layer
-                CustomPaint(
-                  painter: LudoBoardPainter(
-                    gameState: gameProvider.gameState!,
-                    boardSize: MediaQuery.of(context).size.width,
-                    lastMove: gameProvider.lastMoveEvent,
-                    showSafeCells:
-                        gameProvider.gameState?.rules.showSafeCells ?? true,
-                    boardIndex: widget.boardIndex,
-                  ),
-                  size: Size(MediaQuery.of(context).size.width, MediaQuery.of(context).size.width),
+                AnimatedBuilder(
+                  animation: _turnBlinkController,
+                  builder: (context, child) {
+                    return CustomPaint(
+                      painter: LudoBoardPainter(
+                        gameState: gameProvider.gameState!,
+                        boardSize: MediaQuery.of(context).size.width,
+                        lastMove: gameProvider.lastMoveEvent,
+                        showSafeCells:
+                            gameProvider.gameState?.rules.showSafeCells ?? true,
+                        boardIndex: widget.boardIndex,
+                        turnHighlight: _turnBlinkController.value,
+                      ),
+                      size: Size(MediaQuery.of(context).size.width, MediaQuery.of(context).size.width),
+                    );
+                  },
                 ),
                 // Kill animation overlay
                 AnimatedBuilder(

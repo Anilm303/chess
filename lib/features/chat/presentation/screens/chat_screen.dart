@@ -66,6 +66,28 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   @override
+  void initState() {
+    super.initState();
+    _scrollController.addListener(_onScroll);
+  }
+
+  void _onScroll() {
+    if (_scrollController.position.pixels <=
+        _scrollController.position.minScrollExtent + 100) {
+      final auth = context.read<AuthService>();
+      final messageService = context.read<MessageService>();
+      final token = auth.accessToken;
+      if (token != null) {
+        if (widget.isGroupChat) {
+          messageService.loadMoreGroupMessages(token);
+        } else {
+          messageService.loadMoreMessages(token);
+        }
+      }
+    }
+  }
+
+  @override
   void dispose() {
     _typingTimer?.cancel();
     _voiceRecordingTimer?.cancel();

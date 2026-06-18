@@ -22,10 +22,10 @@ class _LudoHomeScreenState extends State<LudoHomeScreen>
   late AnimationController _animationController;
   bool _navigating = false;
   final List<PlayerColor> _slotColors = const [
-    PlayerColor.red,
-    PlayerColor.green,
-    PlayerColor.yellow,
-    PlayerColor.blue,
+    PlayerColor.green, // TL
+    PlayerColor.red, // TR
+    PlayerColor.blue, // BL
+    PlayerColor.yellow, // BR
   ];
   late List<_PlayerSlotType> _playerSlots;
   late List<String> _playerNames;
@@ -631,15 +631,15 @@ class _LudoHomeScreenState extends State<LudoHomeScreen>
                       Expanded(
                         child: Row(
                           children: [
+                            Expanded(child: Container(color: theme.green)),
                             Expanded(child: Container(color: theme.red)),
-                            Expanded(child: Container(color: theme.blue)),
                           ],
                         ),
                       ),
                       Expanded(
                         child: Row(
                           children: [
-                            Expanded(child: Container(color: theme.green)),
+                            Expanded(child: Container(color: theme.blue)),
                             Expanded(child: Container(color: theme.yellow)),
                           ],
                         ),
@@ -672,16 +672,16 @@ class _LudoHomeScreenState extends State<LudoHomeScreen>
             Expanded(
               child: Row(
                 children: [
-                  Expanded(child: Container(color: const Color(0xFFF1463A))),
-                  Expanded(child: Container(color: const Color(0xFF3B73F2))),
+                  Expanded(child: Container(color: const Color(0xFF59A95A))), // TL Green
+                  Expanded(child: Container(color: const Color(0xFFF1463A))), // TR Red
                 ],
               ),
             ),
             Expanded(
               child: Row(
                 children: [
-                  Expanded(child: Container(color: const Color(0xFF59A95A))),
-                  Expanded(child: Container(color: const Color(0xFFF0D63D))),
+                  Expanded(child: Container(color: const Color(0xFF3B73F2))), // BL Blue
+                  Expanded(child: Container(color: const Color(0xFFF0D63D))), // BR Yellow
                 ],
               ),
             ),

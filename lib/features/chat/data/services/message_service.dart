@@ -580,8 +580,18 @@ class MessageService extends ChangeNotifier {
         }
 
         if (_selectedUserUsername == sender) {
-          _currentConversation.add(message);
-          await fetchConversation(sender, accessToken);
+          // Optimized: Add to local conversation immediately, don't refetch everything
+          if (!_currentConversation.any((m) => m.id == message.id)) {
+            _currentConversation.add(message);
+            notifyListeners();
+          }
+          // Mark as read in background
+          http.put(
+            Uri.parse(
+              '${ApiService.baseUrl}/messages/conversation/$sender/mark-read',
+            ),
+            headers: {'Authorization': 'Bearer $accessToken'},
+          );
         } else {
           _upsertConversationPreview(
             username: sender,
@@ -1140,9 +1150,16 @@ class MessageService extends ChangeNotifier {
     return success;
   }
 
-  Future<bool> fetchConversation(String otherUser, String accessToken) async {
+  Future<bool> fetchConversation(
+    String otherUser,
+    String accessToken, {
+    int limit = 50,
+    int offset = 0,
+    bool append = false,
+  }) async {
     try {
-      final url = '${ApiService.baseUrl}/messages/conversation/$otherUser';
+      final url =
+          '${ApiService.baseUrl}/messages/conversation/$otherUser?limit=$limit&offset=$offset';
       _logHttp('GET $url');
       final response = await http.get(
         Uri.parse(url),
@@ -1153,61 +1170,35 @@ class MessageService extends ChangeNotifier {
       if (response.statusCode == 200) {
         final json = jsonDecode(response.body);
         if (json['success'] == true) {
-          _currentConversation = (json['messages'] as List)
+          final List<Message> newMessages = (json['messages'] as List)
               .map((m) => Message.fromJson(m as Map<String, dynamic>))
               .toList();
+
+          if (append) {
+            // Prepend new (older) messages
+            _currentConversation.insertAll(0, newMessages);
+          } else {
+            _currentConversation = newMessages;
+          }
+
           debugPrint(
-              '💬 fetchConversation: loaded ${_currentConversation.length} messages; sample texts: ' +
-                  _currentConversation
-                      .take(5)
-                      .map((m) => '"${m.text}"')
-                      .join(', '));
-          final markReadUrl =
-              '${ApiService.baseUrl}/messages/conversation/$otherUser/mark-read';
-          _logHttp('PUT $markReadUrl');
-          final markReadResponse = await http.put(
-            Uri.parse(markReadUrl),
-            headers: {'Authorization': 'Bearer $accessToken'},
+            '💬 fetchConversation: loaded ${newMessages.length} messages (append=$append)',
           );
-          _logHttpResponse(
-            'PUT /messages/conversation/$otherUser/mark-read',
-            markReadResponse,
-          );
+
+          if (!append) {
+            // Mark as read only on initial load
+            final markReadUrl =
+                '${ApiService.baseUrl}/messages/conversation/$otherUser/mark-read';
+            http.put(
+              Uri.parse(markReadUrl),
+              headers: {'Authorization': 'Bearer $accessToken'},
+            );
+          }
           _directTypingUser = null;
-          notifyListeners();
-          final index = _conversations.indexWhere(
-            (item) => item.username == otherUser,
-          );
-          if (index != -1) {
-            final existing = _conversations[index];
-            _conversations[index] = ChatUser(
-              username: existing.username,
-              firstName: existing.firstName,
-              lastName: existing.lastName,
-              email: existing.email,
-              profileImage: existing.profileImage,
-              bio: existing.bio,
-              isOnline: existing.isOnline,
-              lastSeen: existing.lastSeen,
-              lastMessage: existing.lastMessage,
-              lastMessageTime: existing.lastMessageTime,
-              unreadCount: 0,
-            );
-          }
-          if (_selectedUserUsername != null &&
-              _currentConversation.isNotEmpty) {
-            final latestMessage = _currentConversation.last;
-            _upsertConversationPreview(
-              username: _selectedUserUsername!,
-              lastMessage: latestMessage.text,
-              lastMessageTime: latestMessage.timestamp.toIso8601String(),
-            );
-          }
           notifyListeners();
           return true;
         }
       }
-
       return false;
     } catch (e) {
       _error = 'Error fetching conversation: $e';
@@ -1217,12 +1208,27 @@ class MessageService extends ChangeNotifier {
     }
   }
 
+  Future<void> loadMoreMessages(String accessToken) async {
+    if (_selectedUserUsername == null || _isLoading) return;
+    final offset = _currentConversation.length;
+    await fetchConversation(
+      _selectedUserUsername!,
+      accessToken,
+      offset: offset,
+      append: true,
+    );
+  }
+
   Future<bool> fetchGroupConversation(
     String groupId,
-    String accessToken,
-  ) async {
+    String accessToken, {
+    int limit = 50,
+    int offset = 0,
+    bool append = false,
+  }) async {
     try {
-      final url = '${ApiService.baseUrl}/messages/groups/$groupId/messages';
+      final url =
+          '${ApiService.baseUrl}/messages/groups/$groupId/messages?limit=$limit&offset=$offset';
       _logHttp('GET $url');
       final response = await http.get(
         Uri.parse(url),
@@ -1232,9 +1238,15 @@ class MessageService extends ChangeNotifier {
       if (response.statusCode == 200) {
         final json = jsonDecode(response.body);
         if (json['success'] == true) {
-          _currentGroupConversation = (json['messages'] as List)
+          final List<Message> newMessages = (json['messages'] as List)
               .map((m) => Message.fromJson(m as Map<String, dynamic>))
               .toList();
+
+          if (append) {
+            _currentGroupConversation.insertAll(0, newMessages);
+          } else {
+            _currentGroupConversation = newMessages;
+          }
           await fetchGroups(accessToken);
           notifyListeners();
           return true;
@@ -1247,6 +1259,17 @@ class MessageService extends ChangeNotifier {
       notifyListeners();
       return false;
     }
+  }
+
+  Future<void> loadMoreGroupMessages(String accessToken) async {
+    if (_selectedGroupId == null || _isLoading) return;
+    final offset = _currentGroupConversation.length;
+    await fetchGroupConversation(
+      _selectedGroupId!,
+      accessToken,
+      offset: offset,
+      append: true,
+    );
   }
 
   Future<bool> sendMessage(

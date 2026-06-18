@@ -264,10 +264,10 @@ class BoardConfig {
 
   // Starting positions for each player (clockwise)
   static const Map<PlayerColor, int> playerStartPositions = {
-    PlayerColor.red: 0,
+    PlayerColor.blue: 0,
     PlayerColor.green: 13,
-    PlayerColor.yellow: 26,
-    PlayerColor.blue: 39,
+    PlayerColor.red: 26,
+    PlayerColor.yellow: 39,
   };
 
   // Safe star positions (cannot be killed)
@@ -275,10 +275,10 @@ class BoardConfig {
 
   // Home entry positions (must have exact dice)
   static const Map<PlayerColor, int> homeEntryPositions = {
-    PlayerColor.red: 0,
+    PlayerColor.blue: 0,
     PlayerColor.green: 13,
-    PlayerColor.yellow: 26,
-    PlayerColor.blue: 39,
+    PlayerColor.red: 26,
+    PlayerColor.yellow: 39,
   };
 
   // Home path start (after reaching position 51)

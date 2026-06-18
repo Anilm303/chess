@@ -658,12 +658,13 @@ class CallService extends ChangeNotifier {
       final pc = await createPeerConnection({
         'iceServers': [
           {
-            'urls': ['stun:stun.l.google.com:19302'],
+            'urls': [
+              'stun:stun.l.google.com:19302',
+              'stun:stun1.l.google.com:19302',
+              'stun:stun2.l.google.com:19302',
+            ],
           },
-          {
-            'urls': ['stun:stun1.l.google.com:19302'],
-          },
-          // Added TURN Server for better connectivity
+          // Reliable TURN Servers for cross-network connectivity
           {
             'urls': [
               'turn:openrelay.metered.ca:80',
@@ -674,6 +675,7 @@ class CallService extends ChangeNotifier {
             'credential': 'openrelayproject',
           },
         ],
+        'iceTransportPolicy': 'all',
         'sdpSemantics': 'unified-plan',
       });
 

@@ -113,8 +113,8 @@ class LudoGameLogic {
         (token.position - startPos + mainBoardSize) % mainBoardSize;
     final int totalSteps = stepsFromStart + diceValue;
 
-    if (totalSteps > mainBoardSize - 1) {
-      final int stepsIntoHome = totalSteps - (mainBoardSize - 1);
+    if (totalSteps > mainBoardSize - 2) {
+      final int stepsIntoHome = totalSteps - (mainBoardSize - 2);
       if (stepsIntoHome <= homePathSize) {
         return mainBoardSize +
             stepsIntoHome -
