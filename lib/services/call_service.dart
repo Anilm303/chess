@@ -561,6 +561,17 @@ class CallService extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Ensure audio mode is set to communication for better echo cancellation
+  Future<void> _setAudioMode() async {
+    try {
+      // Small delay to ensure hardware is ready
+      await Future.delayed(const Duration(milliseconds: 500));
+      await Helper.setSpeakerphoneOn(true);
+    } catch (e) {
+      _log('⚠️ Error setting audio mode: $e');
+    }
+  }
+
   Future<void> _prepareLocalMedia(bool videoCall) async {
     _log('🎬 Preparing local media (video=$videoCall)');
 
@@ -590,16 +601,12 @@ class CallService extends ChangeNotifier {
     try {
       _log('📞 Getting user media...');
       final mediaConstraints = {
-        'audio': {
-          'echoCancellation': true,
-          'noiseSuppression': true,
-          'autoGainControl': true,
-        },
+        'audio': true,
         'video': videoCall
             ? {
                 'facingMode': 'user',
-                'width': {'ideal': 640},
-                'height': {'ideal': 480},
+                'width': {'min': 640},
+                'height': {'min': 480},
               }
             : false,
       };
@@ -608,6 +615,17 @@ class CallService extends ChangeNotifier {
         mediaConstraints,
       );
       _log('✅ Media stream obtained');
+
+      // Add tracks to all existing peer connections (Crucial fix for Callee)
+      for (var pc in _peerConnections.values) {
+        final existingSenders = await pc.getSenders();
+        for (final track in _localStream!.getTracks()) {
+          bool alreadyAdded = existingSenders.any((s) => s.track?.id == track.id);
+          if (!alreadyAdded) {
+            pc.addTrack(track, _localStream!);
+          }
+        }
+      }
 
       final audioTracks = _localStream?.getAudioTracks() ?? [];
       final videoTracks = _localStream?.getVideoTracks() ?? [];
@@ -695,7 +713,7 @@ class CallService extends ChangeNotifier {
             _status = CallStatus.connected;
             _startCallDurationTimer();
             // Force speaker/audio routing on connect
-            toggleSpeaker(); 
+            _setAudioMode();
             notifyListeners();
           }
         }
@@ -850,6 +868,15 @@ class CallService extends ChangeNotifier {
 
   Future<void> _sendOffer(String remoteUser) async {
     try {
+      if (_localStream == null) {
+        _log('⏳ Waiting for local stream before sending offer...');
+        int retries = 0;
+        while (_localStream == null && retries < 10) {
+          await Future.delayed(const Duration(milliseconds: 300));
+          retries++;
+        }
+      }
+
       if (_offeredPeers.contains(remoteUser)) {
         _log('ℹ️ Offer already sent to $remoteUser, skipping duplicate');
         return;

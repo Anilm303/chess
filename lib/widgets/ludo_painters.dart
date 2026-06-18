@@ -206,8 +206,8 @@ class LudoBoardPainter extends CustomPainter {
     // Draw Center
     _drawCenter(canvas, cellSize);
     
-    // Draw Arrows
-    _drawArrows(canvas, cellSize);
+    // Arrows drawing disabled as requested
+    // _drawArrows(canvas, cellSize);
   }
 
   void _drawWoodGrain(Canvas canvas, Rect rect, double cellSize) {
@@ -415,97 +415,6 @@ class LudoBoardPainter extends CustomPainter {
         paintCell(coord, _getPlayerColor(color));
       }
     }
-  }
-
-  void _drawArrows(Canvas canvas, double cellSize) {
-    final paint = Paint()
-      ..color = Colors.black87
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2.2;
-
-    void drawFeathers(Offset start, double angle) {
-      final fPaint = Paint()
-        ..color = Colors.black87
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.8;
-      final double fLen = cellSize * 0.28;
-      final double fAngle = pi / 3.0; // Wider angle
-      
-      canvas.drawLine(start, Offset(start.dx - fLen * cos(angle - fAngle), start.dy - fLen * sin(angle - fAngle)), fPaint);
-      canvas.drawLine(start, Offset(start.dx - fLen * cos(angle + fAngle), start.dy - fLen * sin(angle + fAngle)), fPaint);
-    }
-
-    void drawHead(Offset end, double angle) {
-      final double arrowSize = cellSize * 0.32;
-      canvas.drawLine(end, Offset(end.dx - arrowSize * cos(angle - pi / 6), end.dy - arrowSize * sin(angle - pi / 6)), paint);
-      canvas.drawLine(end, Offset(end.dx - arrowSize * cos(angle + pi / 6), end.dy - arrowSize * sin(angle + pi / 6)), paint);
-    }
-
-    // 1. EXIT ARROWS (90 Degree sweeping turn from base into start cell)
-    void drawExit(Offset start, Offset corner, Offset end, double sAng, double eAng) {
-      final path = Path()..moveTo(start.dx, start.dy)..quadraticBezierTo(corner.dx, corner.dy, end.dx, end.dy);
-      canvas.drawPath(path, paint);
-      
-      // Prominent circle at the tile junction
-      canvas.drawCircle(
-        corner, 
-        cellSize * 0.42, 
-        Paint()..color = Colors.black87..style = PaintingStyle.stroke..strokeWidth = 1.5
-      );
-      
-      drawFeathers(start, sAng);
-      drawHead(end, eAng);
-    }
-
-    // Green (Top-Left): curves from bottom of base into cell (1, 6)
-    drawExit(Offset(1.5 * cellSize, 4.8 * cellSize), Offset(1.5 * cellSize, 6.5 * cellSize), Offset(2.5 * cellSize, 6.5 * cellSize), pi/2, 0);
-    // Red (Top-Right): curves from left of base into cell (8, 1)
-    drawExit(Offset(10.2 * cellSize, 1.5 * cellSize), Offset(8.5 * cellSize, 1.5 * cellSize), Offset(8.5 * cellSize, 2.5 * cellSize), pi, pi/2);
-    // Yellow (Bottom-Right): curves from top of base into cell (13, 8)
-    drawExit(Offset(13.5 * cellSize, 10.2 * cellSize), Offset(13.5 * cellSize, 8.5 * cellSize), Offset(12.5 * cellSize, 8.5 * cellSize), -pi/2, pi);
-    // Blue (Bottom-Left): curves from right of base into cell (6, 13)
-    drawExit(Offset(4.8 * cellSize, 13.5 * cellSize), Offset(6.5 * cellSize, 13.5 * cellSize), Offset(6.5 * cellSize, 12.5 * cellSize), 0, -pi/2);
-
-    // 2. HOME ENTRY U-TURNS (Tight semi-circular turns at board edges)
-    void drawEntry(Offset start, Offset c1, Offset c2, Offset end, double sAng, double eAng) {
-      final path = Path()..moveTo(start.dx, start.dy)..cubicTo(c1.dx, c1.dy, c2.dx, c2.dy, end.dx, end.dy);
-      canvas.drawPath(path, paint);
-      drawFeathers(start, sAng);
-      drawHead(end, eAng);
-    }
-
-    // Green (Left Edge): tight turn from row 6 to 7
-    drawEntry(
-      Offset(0.6 * cellSize, 6.2 * cellSize), 
-      Offset(-0.4 * cellSize, 6.2 * cellSize), 
-      Offset(-0.4 * cellSize, 7.5 * cellSize), 
-      Offset(0.8 * cellSize, 7.5 * cellSize), 
-      pi/2, 0
-    );
-    // Red (Top Edge): tight turn from col 8 to 7
-    drawEntry(
-      Offset(8.8 * cellSize, 0.6 * cellSize), 
-      Offset(8.8 * cellSize, -0.4 * cellSize), 
-      Offset(7.5 * cellSize, -0.4 * cellSize), 
-      Offset(7.5 * cellSize, 0.8 * cellSize), 
-      pi, pi/2
-    );
-    // Yellow (Right Edge): tight turn from row 8 to 7
-    drawEntry(
-      Offset(14.4 * cellSize, 8.8 * cellSize), 
-      Offset(15.4 * cellSize, 8.8 * cellSize), 
-      Offset(15.4 * cellSize, 7.5 * cellSize), 
-      Offset(14.2 * cellSize, 7.5 * cellSize), 
-      -pi/2, pi
-    );
-    // Blue (Bottom Edge): tight turn from col 6 to 7
-    drawEntry(
-      Offset(6.2 * cellSize, 14.4 * cellSize), 
-      Offset(6.2 * cellSize, 15.4 * cellSize), 
-      Offset(7.5 * cellSize, 15.4 * cellSize), 
-      Offset(7.5 * cellSize, 14.2 * cellSize), 
-      0, -pi/2
-    );
   }
 
   void _drawCenter(Canvas canvas, double cellSize) {
