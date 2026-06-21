@@ -77,7 +77,7 @@ class _TournamentWaitingScreenState extends State<TournamentWaitingScreen> {
     super.initState();
     final auth = Provider.of<AuthService>(context, listen: false);
     _myUserId = auth.currentUser?.username;
-    _poll = Timer.periodic(const Duration(seconds: 5), (_) => _refresh());
+    _poll = Timer.periodic(const Duration(seconds: 10), (_) => _refresh());
     _refresh();
     // also check the wallet after a short delay (winner detection)
     _pollBalance();
@@ -106,7 +106,7 @@ class _TournamentWaitingScreenState extends State<TournamentWaitingScreen> {
               if (token != null) 'Authorization': 'Bearer $token',
             },
           )
-          .timeout(const Duration(seconds: 5));
+          .timeout(const Duration(seconds: 15));
       if (res.statusCode == 200) {
         final body = json.decode(res.body) as Map<String, dynamic>;
         final s = TournamentState.fromJson(body);
@@ -128,7 +128,10 @@ class _TournamentWaitingScreenState extends State<TournamentWaitingScreen> {
       }
     } catch (e) {
       if (!mounted) return;
-      setState(() => _error = 'Network error: $e');
+      // Don't show full-screen error if we already have a state (just a temporary glitch)
+      if (_state == null) {
+        setState(() => _error = 'Connecting to tournament... (Network error: $e)');
+      }
     }
   }
 
@@ -159,11 +162,31 @@ class _TournamentWaitingScreenState extends State<TournamentWaitingScreen> {
     final s = _state;
     if (s == null) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Loading...')),
+        appBar: AppBar(title: const Text('Connecting...')),
         body: Center(
-          child: _error != null
-              ? Text(_error!, style: const TextStyle(color: Colors.red))
-              : const CircularProgressIndicator(),
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const CircularProgressIndicator(),
+                const SizedBox(height: 24),
+                if (_error != null)
+                  Text(
+                    _error!,
+                    style: const TextStyle(color: Colors.red),
+                    textAlign: TextAlign.center,
+                  )
+                else
+                  const Text('Initializing tournament state...'),
+                const SizedBox(height: 24),
+                ElevatedButton(
+                  onPressed: _refresh,
+                  child: const Text('Retry Connection'),
+                ),
+              ],
+            ),
+          ),
         ),
       );
     }

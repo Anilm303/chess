@@ -24,8 +24,8 @@ class _LudoHomeScreenState extends State<LudoHomeScreen>
   final List<PlayerColor> _slotColors = const [
     PlayerColor.green, // TL
     PlayerColor.red, // TR
-    PlayerColor.blue, // BL
     PlayerColor.yellow, // BR
+    PlayerColor.blue, // BL
   ];
   late List<_PlayerSlotType> _playerSlots;
   late List<String> _playerNames;
@@ -43,8 +43,8 @@ class _LudoHomeScreenState extends State<LudoHomeScreen>
     _playerSlots = [
       _PlayerSlotType.human,
       _PlayerSlotType.none,
-      _PlayerSlotType.none,
       _PlayerSlotType.computer,
+      _PlayerSlotType.none,
     ];
     _playerNames = ['Player 1', 'Player 2', 'Player 3', 'Player 4'];
     _animationController = AnimationController(

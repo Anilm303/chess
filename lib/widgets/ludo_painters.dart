@@ -291,8 +291,8 @@ class LudoBoardPainter extends CustomPainter {
 
     // 4 token spots (concentric rings as per image)
     for (int i = 0; i < 4; i++) {
-      final dx = (i % 2 == 0) ? 1.6 : 3.4;
-      final dy = (i < 2) ? 1.6 : 3.4;
+      final dx = (i % 2 == 0) ? 1.4 : 3.6;
+      final dy = (i < 2) ? 1.5 : 3.5;
       final center = Offset((col + dx + 0.5) * cellSize, (row + dy + 0.5) * cellSize);
       
       canvas.drawCircle(center, cellSize * 0.65, Paint()..color = color);
@@ -543,10 +543,11 @@ class LudoBoardPainter extends CustomPainter {
           baseY = 9;
           break;
       }
-      final dx = (token.id % 2 == 0) ? 1.5 : 3.5;
-      final dy = (token.id < 2) ? 1.6 : 3.4;
+      final dx = (token.id % 2 == 0) ? 1.4 : 3.6;
+      final dy = (token.id < 2) ? 1.5 : 3.5;
       return Offset(baseX + dx, baseY + dy);
-    } else if (token.position >= 52) {
+    }
+ else if (token.position >= 52) {
       int steps = token.position - 51; // position 52 -> step 1
       switch (token.playerColor) {
         case PlayerColor.blue:
@@ -583,8 +584,8 @@ class LudoBoardPainter extends CustomPainter {
         break; // Bottom-Right
     }
 
-    final dx = (token.id % 2 == 0) ? 1.5 : 3.5;
-    final dy = (token.id < 2) ? 1.6 : 3.4;
+    final dx = (token.id % 2 == 0) ? 1.4 : 3.6;
+    final dy = (token.id < 2) ? 1.5 : 3.5;
 
     return Offset(baseX + dx, baseY + dy);
   }

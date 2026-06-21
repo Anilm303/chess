@@ -94,7 +94,7 @@ class EsewaService {
             'Accept': 'application/json',
             if (bearerToken != null) 'Authorization': 'Bearer $bearerToken',
           },
-        ).timeout(const Duration(seconds: 5));
+        ).timeout(const Duration(seconds: 15));
         if (res.statusCode == 200) {
           final body = json.decode(res.body) as Map<String, dynamic>;
           final status = body['status'] as String?;
