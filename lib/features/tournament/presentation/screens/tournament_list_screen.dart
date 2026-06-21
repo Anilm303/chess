@@ -6,7 +6,8 @@ import '../../../../services/api_service.dart';
 import '../../../../services/auth_service.dart';
 import '../../../../services/socket_service.dart';
 import 'create_tournament_screen.dart';
-import '../screens/tournament_join_screen.dart';
+import 'tournament_join_screen.dart';
+import 'tournament_join_flow.dart';
 
 class TournamentListScreen extends StatefulWidget {
   const TournamentListScreen({super.key});
