@@ -172,11 +172,12 @@ class _TournamentListScreenState extends State<TournamentListScreen> {
                                   },
                                   body: jsonEncode({'user_id': userId}));
                               if (res.statusCode == 200) {
-                                navigator.push(MaterialPageRoute(
-                                    builder: (_) => TournamentJoinScreen(
+                                Navigator.of(context).push(MaterialPageRoute(
+                                    builder: (_) => TournamentJoinFlow(
                                         userId: userId,
                                         tournamentId: tid,
-                                        entryFee: entry,
+                                        tournamentTitle: t['title'] ?? 'Chess',
+                                        amount: entry,
                                         backendBaseUrl: ApiService.baseUrl)));
                               } else {
                                 String errorMsg = 'Failed to join';
