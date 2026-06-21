@@ -92,12 +92,15 @@ class _TournamentListScreenState extends State<TournamentListScreen> {
                   }
 
                   final t = _tournaments[index - 1];
+                  final int paid = t['paid_players'] ?? 0;
+                  final int max = t['max_players'] ?? 2;
+                  
                   return Card(
                     margin: const EdgeInsets.only(bottom: 12),
                     child: ListTile(
                       title: Text(t['title'] ?? 'Untitled'),
                       subtitle: Text(
-                          '${t['game_type'] ?? ''} · Entry: NPR ${t['entry_fee'] ?? 0}'),
+                          '${t['game_type'] ?? ''} · Entry: NPR ${t['entry_fee'] ?? 0} · Paid: $paid/$max'),
                       trailing: ElevatedButton(
                         onPressed: () async {
                           final tid = t['id'];
