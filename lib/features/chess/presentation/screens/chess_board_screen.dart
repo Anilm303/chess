@@ -11,9 +11,18 @@ import '../../../chat/presentation/screens/messaging_screen.dart';
 import '../../../face_liveness/presentation/screens/liveness_permission_screen.dart';
 import '../../../ludo/presentation/screens/ludo_home_screen.dart';
 import '../../../tournament/presentation/screens/tournament_list_screen.dart';
+import '../../../../services/socket_service.dart';
+import '../../../../features/auth/data/services/auth_service.dart';
 
 class ChessBoardScreen extends StatefulWidget {
-  const ChessBoardScreen({super.key});
+  final String? tournamentId;
+  final ChessColor? myColor;
+
+  const ChessBoardScreen({
+    super.key,
+    this.tournamentId,
+    this.myColor,
+  });
 
   @override
   State<ChessBoardScreen> createState() => _ChessBoardScreenState();
@@ -25,24 +34,86 @@ class _ChessBoardScreenState extends State<ChessBoardScreen> {
   int? _selectedCol;
   List<List<int>> _validMoves = [];
   String? _message;
+  final SocketService _socketService = SocketService();
 
   @override
   void initState() {
     super.initState();
     _game = ChessGame();
+    if (widget.tournamentId != null) {
+      _setupOnlinePlay();
+    }
+  }
+
+  void _setupOnlinePlay() {
+    final auth = context.read<AuthService>();
+    final token = auth.accessToken ?? '';
+    
+    _socketService.connect(
+      token: token,
+      onMessage: (_) {},
+      onConnected: () {
+        _socketService.send('chess_join', {'tournament_id': widget.tournamentId});
+      },
+      onDisconnected: () {},
+      eventHandlers: {
+        'chess_move_received': (data) {
+          if (mounted) {
+            setState(() {
+              _game.makeMove(
+                data['fromRow'],
+                data['fromCol'],
+                data['toRow'],
+                data['toCol'],
+              );
+              _message = '${_game.turn == ChessColor.white ? 'Black' : 'White'} to move';
+            });
+          }
+        }
+      },
+    );
+  }
+
+  @override
+  void dispose() {
+    _socketService.disconnect();
+    super.dispose();
   }
 
   void _tapSquare(int row, int col) {
+    // If it's an online game, enforce turn and color
+    if (widget.tournamentId != null) {
+      if (_game.turn != widget.myColor) {
+        setState(() => _message = "It's not your turn!");
+        return;
+      }
+    }
+
     setState(() {
       // If tapping a valid move destination
       if (_validMoves.any((m) => m[0] == row && m[1] == col)) {
+        final fromRow = _selectedRow!;
+        final fromCol = _selectedCol!;
+        
         bool moveSuccess = _game.makeMove(
-          _selectedRow!,
-          _selectedCol!,
+          fromRow,
+          fromCol,
           row,
           col,
         );
+        
         if (moveSuccess) {
+          // Send move to server if online
+          if (widget.tournamentId != null) {
+            _socketService.send('chess_move', {
+              'tournament_id': widget.tournamentId,
+              'fromRow': fromRow,
+              'fromCol': fromCol,
+              'toRow': row,
+              'toCol': col,
+            });
+          }
+
           _message =
               '${_game.turn == ChessColor.white ? 'Black' : 'White'} to move';
           _selectedRow = null;

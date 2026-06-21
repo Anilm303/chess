@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:chess_app/features/tournament/presentation/widgets/tournament_payment_button.dart';
 import 'package:chess_app/features/tournament/presentation/screens/tournament_waiting_screen.dart';
 import 'package:chess_app/features/chess/presentation/screens/chess_board_screen.dart';
+import 'color_selection_screen.dart';
+import '../../../../chess_logic.dart';
 
 /// A full "tournament flow" screen that:
 ///  1. Shows the Pay button.
@@ -33,6 +35,7 @@ class TournamentJoinFlow extends StatefulWidget {
 
 class _TournamentJoinFlowState extends State<TournamentJoinFlow> {
   String? _tournamentId;
+  bool _navigatedToGame = false;
 
   @override
   void initState() {
@@ -57,19 +60,28 @@ class _TournamentJoinFlowState extends State<TournamentJoinFlow> {
   }
 
   void _onTournamentState(TournamentState state) {
-    // Don't auto-push when the state is "open" or "waiting" - we only
-    // navigate when the game actually starts or ends.
-    if (state.status == 'in_progress') {
+    // When the tournament is in_progress, both players have paid.
+    // Go to side selection first.
+    if (state.status == 'in_progress' && !_navigatedToGame) {
+      _navigatedToGame = true;
       Navigator.of(context).push(
         MaterialPageRoute(
-          builder: (_) => widget.gameScreen ??
-              const ChessBoardScreen(), // whatever your screen is
+          builder: (_) => ColorSelectionScreen(
+            tournamentId: _tournamentId!,
+            onColorSelected: (color) {
+              Navigator.of(context).pushReplacement(
+                MaterialPageRoute(
+                  builder: (_) => widget.gameScreen ??
+                      ChessBoardScreen(
+                        tournamentId: _tournamentId,
+                        myColor: color,
+                      ),
+                ),
+              );
+            },
+          ),
         ),
       );
-    }
-    if (state.status == 'finished') {
-      // Pop back to the join screen so the winner card is visible there.
-      // (TournamentWaitingScreen shows the winner card itself.)
     }
   }
 
