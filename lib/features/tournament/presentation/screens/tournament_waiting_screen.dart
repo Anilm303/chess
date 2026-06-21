@@ -220,12 +220,50 @@ class _TournamentWaitingScreenState extends State<TournamentWaitingScreen> {
             if (isFinished && !youWon)
               _loserCard(s),
             if (!isFinished)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: ElevatedButton(
+                  onPressed: () async {
+                    // Manual verification call to backend
+                    try {
+                      final auth = context.read<AuthService>();
+                      final token = auth.accessToken;
+                      // Find current user's PID for this tournament from participants if possible
+                      // or just have backend find latest pending payment for this user/tournament
+                      // For now, let's look for a participant with 'joined' status
+                      final myPart = s.participants.firstWhere((p) => p['user_id'] == _myUserId, orElse: () => null);
+                      final pid = myPart != null ? myPart['payment_pid'] : null;
+
+                      final res = await http.post(
+                        Uri.parse('${_apiBase}/payments/esewa/verify'),
+                        headers: {
+                          'Content-Type': 'application/json',
+                          'Authorization': 'Bearer $token',
+                        },
+                        body: jsonEncode({'pid': pid}), // pid might be null, backend should handle it or use latest
+                      );
+                      
+                      _refresh(); // refresh screen after verification
+                      
+                      if (res.statusCode == 200) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Payment status updated!'))
+                        );
+                      }
+                    } catch (e) {
+                      debugPrint('Verification error: $e');
+                    }
+                  },
+                  child: const Text('I have paid (Refresh Status)'),
+                ),
+              ),
+            if (!isFinished)
               const Padding(
-                padding: EdgeInsets.symmetric(vertical: 12),
+                padding: EdgeInsets.symmetric(vertical: 4),
                 child: Text(
                   'Waiting for opponent to pay...',
                   textAlign: TextAlign.center,
-                  style: TextStyle(fontStyle: FontStyle.italic),
+                  style: TextStyle(fontStyle: FontStyle.italic, fontSize: 12),
                 ),
               ),
           ],

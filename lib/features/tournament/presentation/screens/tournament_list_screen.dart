@@ -65,6 +65,45 @@ class _TournamentListScreenState extends State<TournamentListScreen> {
     setState(() => _loading = false);
   }
 
+  Future<void> _confirmDelete(String tid) async {
+    final bool? confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete Tournament?'),
+        content: const Text('Are you sure you want to remove this tournament?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Delete', style: TextStyle(color: Colors.red))),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      _deleteTournament(tid);
+    }
+  }
+
+  Future<void> _deleteTournament(String tid) async {
+    try {
+      final auth = context.read<AuthService>();
+      final token = auth.accessToken ?? '';
+      final res = await http.delete(
+        Uri.parse('${ApiService.baseUrl}/tournaments/$tid'),
+        headers: {'Authorization': 'Bearer $token'},
+      );
+
+      if (res.statusCode == 200) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Tournament deleted')));
+        _load(); // refresh list
+      } else {
+        final body = jsonDecode(res.body);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(body['message'] ?? 'Failed to delete')));
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -92,13 +131,24 @@ class _TournamentListScreenState extends State<TournamentListScreen> {
                   }
 
                   final t = _tournaments[index - 1];
-                  final int paid = t['paid_players'] ?? 0;
-                  final int max = t['max_players'] ?? 2;
+                  final int paid = (t['paid_players'] as num?)?.toInt() ?? 0;
+                  final int max = (t['max_players'] as num?)?.toInt() ?? 2;
+                  final auth = context.read<AuthService>();
+                  final bool isOwner = t['owner'] == auth.currentUser?.username;
                   
                   return Card(
                     margin: const EdgeInsets.only(bottom: 12),
                     child: ListTile(
-                      title: Text(t['title'] ?? 'Untitled'),
+                      title: Row(
+                        children: [
+                          Expanded(child: Text(t['title'] ?? 'Untitled')),
+                          if (isOwner)
+                            IconButton(
+                              icon: const Icon(Icons.delete_outline, color: Colors.red),
+                              onPressed: () => _confirmDelete(t['id']),
+                            ),
+                        ],
+                      ),
                       subtitle: Text(
                           '${t['game_type'] ?? ''} · Entry: NPR ${t['entry_fee'] ?? 0} · Paid: $paid/$max'),
                       trailing: ElevatedButton(
@@ -129,8 +179,13 @@ class _TournamentListScreenState extends State<TournamentListScreen> {
                                         entryFee: entry,
                                         backendBaseUrl: ApiService.baseUrl)));
                               } else {
-                                messenger.showSnackBar(const SnackBar(
-                                    content: Text('Failed to join')));
+                                String errorMsg = 'Failed to join';
+                                try {
+                                  final body = jsonDecode(res.body);
+                                  errorMsg = body['message'] ?? errorMsg;
+                                } catch (_) {}
+                                messenger.showSnackBar(SnackBar(
+                                    content: Text(errorMsg)));
                               }
                             } catch (e) {
                               if (!mounted) return;
