@@ -30,7 +30,7 @@ class SocketService {
     if (kDebugMode) print('Connecting to socket: $url');
 
     _socket = io.io(url, <String, dynamic>{
-      'transports': ['websocket'],
+      'transports': ['websocket'], // Force websocket for zero delay
       'autoConnect': false,
       'extraHeaders': {'Authorization': 'Bearer $token'},
     });
