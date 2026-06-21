@@ -81,11 +81,21 @@ class _ChessBoardScreenState extends State<ChessBoardScreen> {
   }
 
   void _tapSquare(int row, int col) {
-    // If it's an online game, enforce turn and color
+    // CRUCIAL: Online Game Logic - Strictly enforce color and turn
     if (widget.tournamentId != null) {
+      // 1. Check if it's the current player's turn
       if (_game.turn != widget.myColor) {
-        setState(() => _message = "It's not your turn!");
+        setState(() => _message = "Waiting for opponent's move...");
         return;
+      }
+      
+      // 2. If selecting a new piece, ensure it's their own color
+      if (_selectedRow == null) {
+        final piece = _game.board[row][col];
+        if (piece != null && piece.color != widget.myColor) {
+          setState(() => _message = "You can only move your own pieces!");
+          return;
+        }
       }
     }
 
@@ -351,6 +361,22 @@ class _ChessBoardScreenState extends State<ChessBoardScreen> {
       body: Column(
         children: [
           const SizedBox(height: 12),
+          if (widget.tournamentId != null)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              margin: const EdgeInsets.only(bottom: 12),
+              decoration: BoxDecoration(
+                color: widget.myColor == ChessColor.white 
+                    ? Colors.white.withOpacity(0.1) 
+                    : Colors.black.withOpacity(0.3),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: MessengerColors.messengerBlue),
+              ),
+              child: Text(
+                'TOURNAMENT MODE: YOU ARE ${widget.myColor == ChessColor.white ? "WHITE" : "BLACK"}',
+                style: const TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1.1),
+              ),
+            ),
           Text(
             'Turn: $turnColor ${inCheck ? '(Check!)' : ''}',
             style: theme.textTheme.titleLarge?.copyWith(
@@ -460,15 +486,16 @@ class _ChessBoardScreenState extends State<ChessBoardScreen> {
             ),
           ),
           const SizedBox(height: 16),
-          ElevatedButton.icon(
-            onPressed: _resetGame,
-            icon: const Icon(Icons.refresh),
-            label: const Text('New Game'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Theme.of(context).colorScheme.primary,
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+          if (widget.tournamentId == null)
+            ElevatedButton.icon(
+              onPressed: _resetGame,
+              icon: const Icon(Icons.refresh),
+              label: const Text('New Game'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Theme.of(context).colorScheme.primary,
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              ),
             ),
-          ),
           const SizedBox(height: 16),
         ],
       ),
