@@ -39,15 +39,16 @@ class BackendConfig {
     switch (detectBackendDeviceType()) {
       case BackendDeviceType.web:
         final origin = _webOrigin();
-        return origin.isEmpty ? 'http://127.0.0.1:7860/api' : '$origin/api';
+        return origin.isEmpty ? _productionApiBase : '$origin/api';
       case BackendDeviceType.androidEmulator:
-        return 'http://10.0.2.2:7860/api';
+        // Changed from local to production so emulator and APK see the same data
+        return _productionApiBase;
       case BackendDeviceType.androidPhysical:
         return _productionApiBase;
       case BackendDeviceType.ios:
         return _productionApiBase;
       case BackendDeviceType.desktop:
-        return 'http://127.0.0.1:7860/api';
+        return _productionApiBase;
       case BackendDeviceType.unknown:
         return _productionApiBase;
     }
