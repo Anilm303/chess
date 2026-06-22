@@ -49,15 +49,21 @@ class _ChessBoardScreenState extends State<ChessBoardScreen> {
     final auth = context.read<AuthService>();
     final token = auth.accessToken ?? '';
     
+    debugPrint('DEBUG: Setting up online play for tournament ${widget.tournamentId}');
+    
     _socketService.connect(
       token: token,
       onMessage: (_) {},
       onConnected: () {
+        debugPrint('DEBUG: Socket connected, joining room chess_${widget.tournamentId}');
         _socketService.send('chess_join', {'tournament_id': widget.tournamentId});
       },
-      onDisconnected: () {},
+      onDisconnected: () {
+        debugPrint('DEBUG: Socket disconnected');
+      },
       eventHandlers: {
         'chess_move_received': (data) {
+          debugPrint('DEBUG: Received remote move: $data');
           if (mounted) {
             setState(() {
               _game.makeMove(
@@ -66,7 +72,7 @@ class _ChessBoardScreenState extends State<ChessBoardScreen> {
                 data['toRow'],
                 data['toCol'],
               );
-              _message = '${_game.turn == ChessColor.white ? 'Black' : 'White'} to move';
+              _message = '${_game.turn == ChessColor.white ? 'White' : 'Black'} to move';
             });
           }
         }
