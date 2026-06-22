@@ -265,7 +265,23 @@ class CallService extends ChangeNotifier {
         return;
       }
 
-      _log('📥 Offer from $from');
+      _log('📥 Offer from $from. Checking local stream...');
+      
+      // CRUCIAL: Wait if local media is not yet prepared
+      if (_localStream == null) {
+        _log('⏳ Local stream not ready, waiting for media before answering...');
+        int retries = 0;
+        while (_localStream == null && retries < 20) {
+          await Future.delayed(const Duration(milliseconds: 500));
+          retries++;
+        }
+      }
+
+      if (_localStream == null) {
+        _log('❌ Failed to get local stream in time. Cannot answer.');
+        return;
+      }
+
       final pc = await _createPeerConnection(from);
 
       _log('🔄 Setting remote offer...');
@@ -697,9 +713,11 @@ class CallService extends ChangeNotifier {
               'stun:stun.l.google.com:19302',
               'stun:stun1.l.google.com:19302',
               'stun:stun2.l.google.com:19302',
+              'stun:stun3.l.google.com:19302',
+              'stun:stun4.l.google.com:19302',
             ],
           },
-          // Reliable TURN Servers for cross-network connectivity
+          // Reliable TURN Servers
           {
             'urls': [
               'turn:openrelay.metered.ca:80',
@@ -711,7 +729,7 @@ class CallService extends ChangeNotifier {
           },
         ],
         'iceTransportPolicy': 'all',
-        'iceCandidatePoolSize': 10,
+        'iceCandidatePoolSize': 0, // Set to 0 for more reliable gathering on some networks
         'sdpSemantics': 'unified-plan',
       });
 
