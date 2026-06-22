@@ -630,9 +630,9 @@ class CallService extends ChangeNotifier {
         'video': videoCall
             ? {
                 'facingMode': 'user',
-                'width': {'ideal': 1280},
-                'height': {'ideal': 720},
-                'frameRate': {'ideal': 30},
+                'width': {'ideal': 640},
+                'height': {'ideal': 480},
+                'frameRate': {'ideal': 24},
               }
             : false,
       };
@@ -713,23 +713,22 @@ class CallService extends ChangeNotifier {
               'stun:stun.l.google.com:19302',
               'stun:stun1.l.google.com:19302',
               'stun:stun2.l.google.com:19302',
-              'stun:stun3.l.google.com:19302',
-              'stun:stun4.l.google.com:19302',
             ],
           },
-          // Reliable TURN Servers
+          // FORCING TURN OVER TCP PORT 443 - This is the key to bypass mobile data firewalls
           {
             'urls': [
               'turn:openrelay.metered.ca:80',
               'turn:openrelay.metered.ca:443',
               'turn:openrelay.metered.ca:443?transport=tcp',
+              'turn:global.relay.metered.ca:443?transport=tcp',
             ],
             'username': 'openrelayproject',
             'credential': 'openrelayproject',
           },
         ],
-        'iceTransportPolicy': 'all',
-        'iceCandidatePoolSize': 0, // Set to 0 for more reliable gathering on some networks
+        'iceTransportPolicy': 'relay', // Temporarily forcing 'relay' mode to test if TURN works
+        'iceCandidatePoolSize': 0,
         'sdpSemantics': 'unified-plan',
       });
 
