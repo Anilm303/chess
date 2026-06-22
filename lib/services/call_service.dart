@@ -178,13 +178,18 @@ class CallService extends ChangeNotifier {
   }
 
   void _handleCallRejected(dynamic data) {
-    _log('❌ Call rejected by peer');
-    _status = CallStatus.rejected;
-    _error = 'Call declined';
-    notifyListeners();
-    Future.delayed(const Duration(seconds: 2), () {
-      _cleanupCall();
-    });
+    _log('❌ Call rejected or failed by peer');
+    // Only cleanup if we are not already connected
+    if (_status != CallStatus.connected) {
+      _status = CallStatus.rejected;
+      _error = 'Call failed or declined';
+      notifyListeners();
+      Future.delayed(const Duration(seconds: 2), () {
+        _cleanupCall();
+      });
+    } else {
+      _log('⚠️ Ignoring rejection signal because call is already connected');
+    }
   }
 
   void _handleParticipantJoined(dynamic data) async {
@@ -601,12 +606,17 @@ class CallService extends ChangeNotifier {
     try {
       _log('📞 Getting user media...');
       final mediaConstraints = {
-        'audio': true,
+        'audio': {
+          'echoCancellation': true,
+          'noiseSuppression': true,
+          'autoGainControl': true,
+        },
         'video': videoCall
             ? {
                 'facingMode': 'user',
-                'width': {'min': 640},
-                'height': {'min': 480},
+                'width': {'ideal': 1280},
+                'height': {'ideal': 720},
+                'frameRate': {'ideal': 30},
               }
             : false,
       };
@@ -616,13 +626,13 @@ class CallService extends ChangeNotifier {
       );
       _log('✅ Media stream obtained');
 
-      // Add tracks to all existing peer connections (Crucial fix for Callee)
+      // Crucial for Web compatibility: Ensure tracks are added correctly for both sides
       for (var pc in _peerConnections.values) {
         final existingSenders = await pc.getSenders();
         for (final track in _localStream!.getTracks()) {
           bool alreadyAdded = existingSenders.any((s) => s.track?.id == track.id);
           if (!alreadyAdded) {
-            pc.addTrack(track, _localStream!);
+            await pc.addTrack(track, _localStream!);
           }
         }
       }
@@ -717,11 +727,15 @@ class CallService extends ChangeNotifier {
             notifyListeners();
           }
         }
+        if (state == RTCIceConnectionState.RTCIceConnectionStateDisconnected) {
+          _log('⚠️ ICE Disconnected. Attempting to keep the call alive...');
+        }
         if (state == RTCIceConnectionState.RTCIceConnectionStateFailed) {
-          _log('❌ ICE Connection Failed');
-          _status = CallStatus.failed;
-          _error = 'Connection failed. Please check your internet.';
-          notifyListeners();
+          _log('❌ ICE Connection Failed. Attempting ICE Restart...');
+          // Trigger ICE Restart logic for better cross-network reliability
+          for (var pc in _peerConnections.values) {
+            pc.restartIce();
+          }
         }
       };
 
