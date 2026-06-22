@@ -708,33 +708,39 @@ class CallService extends ChangeNotifier {
     try {
       final pc = await createPeerConnection({
         'iceServers': [
+          {'urls': 'stun:stun.l.google.com:19302'},
+          {'urls': 'stun:stun1.l.google.com:19302'},
+          {'urls': 'stun:stun2.l.google.com:19302'},
           {
             'urls': [
-              'stun:stun.l.google.com:19302',
-              'stun:stun1.l.google.com:19302',
-              'stun:stun2.l.google.com:19302',
-              'stun:stun3.l.google.com:19302',
-              'stun:stun4.l.google.com:19302',
-              'stun:stun.nextcloud.com:443',
-            ],
-          },
-          {
-            'urls': [
-              'turn:openrelay.metered.ca:80',
-              'turn:openrelay.metered.ca:443',
               'turn:openrelay.metered.ca:443?transport=tcp',
               'turns:openrelay.metered.ca:443?transport=tcp',
-              'turn:global.relay.metered.ca:443?transport=tcp',
-              'turns:global.relay.metered.ca:443?transport=tcp',
+              'turn:openrelay.metered.ca:443?transport=udp',
+              'turn:openrelay.metered.ca:80',
             ],
             'username': 'openrelayproject',
             'credential': 'openrelayproject',
           },
         ],
         'iceTransportPolicy': 'all',
-        'iceCandidatePoolSize': 10,
+        'iceCandidatePoolSize': 0,
+        'bundlePolicy': 'max-bundle',
+        'rtcpMuxPolicy': 'require',
         'sdpSemantics': 'unified-plan',
+      }, {
+        'mandatory': {
+          'OfferToReceiveAudio': true,
+          'OfferToReceiveVideo': true,
+        },
+        'optional': [
+          {'DtlsSrtpKeyAgreement': true},
+          {'googIPv6': true},
+        ],
       });
+
+      pc.onIceGatheringState = (state) {
+        _log('🧊 ICE Gathering State: $state');
+      };
 
       pc.onIceConnectionState = (state) {
         _log('🧊 ICE Connection State: $state');
@@ -743,20 +749,13 @@ class CallService extends ChangeNotifier {
           if (_status != CallStatus.connected) {
             _status = CallStatus.connected;
             _startCallDurationTimer();
-            // Force speaker/audio routing on connect
             _setAudioMode();
             notifyListeners();
           }
         }
-        if (state == RTCIceConnectionState.RTCIceConnectionStateDisconnected) {
-          _log('⚠️ ICE Disconnected. Attempting to keep the call alive...');
-        }
         if (state == RTCIceConnectionState.RTCIceConnectionStateFailed) {
           _log('❌ ICE Connection Failed. Attempting ICE Restart...');
-          // Trigger ICE Restart logic for better cross-network reliability
-          for (var pc in _peerConnections.values) {
-            pc.restartIce();
-          }
+          pc.restartIce();
         }
       };
 
