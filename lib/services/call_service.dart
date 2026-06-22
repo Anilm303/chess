@@ -713,22 +713,26 @@ class CallService extends ChangeNotifier {
               'stun:stun.l.google.com:19302',
               'stun:stun1.l.google.com:19302',
               'stun:stun2.l.google.com:19302',
+              'stun:stun3.l.google.com:19302',
+              'stun:stun4.l.google.com:19302',
+              'stun:stun.nextcloud.com:443',
             ],
           },
-          // FORCING TURN OVER TCP PORT 443 - This is the key to bypass mobile data firewalls
           {
             'urls': [
               'turn:openrelay.metered.ca:80',
               'turn:openrelay.metered.ca:443',
               'turn:openrelay.metered.ca:443?transport=tcp',
+              'turns:openrelay.metered.ca:443?transport=tcp',
               'turn:global.relay.metered.ca:443?transport=tcp',
+              'turns:global.relay.metered.ca:443?transport=tcp',
             ],
             'username': 'openrelayproject',
             'credential': 'openrelayproject',
           },
         ],
-        'iceTransportPolicy': 'relay', // Temporarily forcing 'relay' mode to test if TURN works
-        'iceCandidatePoolSize': 0,
+        'iceTransportPolicy': 'all',
+        'iceCandidatePoolSize': 10,
         'sdpSemantics': 'unified-plan',
       });
 
