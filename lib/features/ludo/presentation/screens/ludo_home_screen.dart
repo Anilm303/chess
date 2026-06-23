@@ -122,60 +122,28 @@ class _LudoHomeScreenState extends State<LudoHomeScreen>
 
           final children = <Widget>[
             Container(
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    Color(0xFF171717),
-                    Color(0xFF2F2F2F),
-                    Color(0xFF0C0C0C),
-                  ],
-                ),
-              ),
-              child: Stack(
-                children: [
-                  Positioned(
-                    left: -60,
-                    top: 120,
-                    child: _glowBlob(
-                      const Color(0xFF3DDC84).withAlpha(31),
-                      180,
-                    ),
-                  ),
-                  Positioned(
-                    right: -70,
-                    top: 30,
-                    child: _glowBlob(
-                      const Color(0xFFFFD54A).withAlpha(31),
-                      220,
-                    ),
-                  ),
-                  SafeArea(
-                    child: SingleChildScrollView(
-                      child: Padding(
-                        padding: const EdgeInsets.fromLTRB(12, 10, 12, 18),
-                        child: Center(
-                          child: ConstrainedBox(
-                            constraints: const BoxConstraints(maxWidth: 380),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
-                              children: [
-                                _buildHeader(context),
-                                const SizedBox(height: 10),
-                                _buildSetupPanel(),
-                                const SizedBox(height: 12),
-                                _buildPrimaryActions(context),
-                                const SizedBox(height: 8),
-                                _buildSecondaryActions(context),
-                              ],
-                            ),
-                          ),
+              color: Colors.white,
+              child: SafeArea(
+                child: SingleChildScrollView(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(12, 10, 12, 18),
+                    child: Center(
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 400),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            _buildHeader(context),
+                            const SizedBox(height: 10),
+                            _buildSetupPanel(),
+                            const SizedBox(height: 16),
+                            _buildPrimaryActions(context),
+                          ],
                         ),
                       ),
                     ),
                   ),
-                ],
+                ),
               ),
             ),
           ];
@@ -213,55 +181,71 @@ class _LudoHomeScreenState extends State<LudoHomeScreen>
 
   Widget _buildHeader(BuildContext context) {
     return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        const SizedBox(width: 6),
+        const SizedBox(width: 48), // Spacer to center logo
         Expanded(
           child: Column(
             children: [
-              ScaleTransition(
-                scale: Tween<double>(begin: 0.92, end: 1.0).animate(
-                  CurvedAnimation(
-                    parent: _animationController,
-                    curve: Curves.easeInOut,
-                  ),
-                ),
-                child: const Text(
-                  'LUDO',
+              RichText(
+                text: const TextSpan(
+                  children: [
+                    TextSpan(
+                      text: 'L',
+                      style: TextStyle(color: Color(0xFFE24E44)),
+                    ),
+                    TextSpan(
+                      text: 'U',
+                      style: TextStyle(color: Color(0xFF86D63B)),
+                    ),
+                    TextSpan(
+                      text: 'D',
+                      style: TextStyle(color: Color(0xFF3B73F2)),
+                    ),
+                    TextSpan(
+                      text: 'O',
+                      style: TextStyle(color: Color(0xFFFFC233)),
+                    ),
+                  ],
                   style: TextStyle(
-                    fontSize: 42,
-                    height: 1,
+                    fontSize: 48,
                     fontWeight: FontWeight.w900,
-                    letterSpacing: 2.5,
-                    color: Color(0xFFFF4A4A),
-                    shadows: [
-                      Shadow(
-                        color: Colors.white,
-                        blurRadius: 2,
-                        offset: Offset(0, 1),
-                      ),
-                    ],
+                    letterSpacing: -2,
+                    fontFamily: 'Roboto', // Or similar bold font
                   ),
                 ),
               ),
-              const SizedBox(height: 2),
               const Text(
                 'Neo-Classic',
                 style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 1.1,
+                  color: Colors.black,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w900,
+                  height: 0.8,
                 ),
               ),
             ],
           ),
         ),
-        Material(
-          color: const Color(0xFFFFC233),
-          shape: const CircleBorder(),
+        Container(
+          width: 44,
+          height: 44,
+          decoration: BoxDecoration(
+            color: const Color(0xFFFFC233),
+            shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.2),
+                blurRadius: 4,
+                offset: const Offset(0, 2),
+              ),
+            ],
+            border: Border.all(color: Colors.white, width: 2),
+          ),
           child: IconButton(
             onPressed: () => _showSettings(context),
-            icon: const Icon(Icons.settings, color: Colors.white),
-            tooltip: 'Settings',
+            icon: const Icon(Icons.settings, color: Colors.white, size: 24),
+            padding: EdgeInsets.zero,
           ),
         ),
       ],
@@ -271,172 +255,242 @@ class _LudoHomeScreenState extends State<LudoHomeScreen>
   Widget _buildSetupPanel() {
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFFF9F5E8),
-        borderRadius: BorderRadius.circular(14),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(4),
         border: Border.all(color: const Color(0xFFFFC233), width: 2),
-        boxShadow: const [
-          BoxShadow(
-            color: Colors.black26,
-            blurRadius: 18,
-            offset: Offset(0, 8),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  flex: 3,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _sectionHeader('Select Players:'),
+                      const SizedBox(height: 8),
+                      Stack(
+                        clipBehavior: Clip.none,
+                        children: [
+                          Column(
+                            children: [
+                              Row(
+                                children: [
+                                  Expanded(child: _buildPlayerSlotCard(1)), // TR - Red
+                                  const SizedBox(width: 4),
+                                  Expanded(child: _buildPlayerSlotCard(3)), // BL - Blue
+                                ],
+                              ),
+                              const SizedBox(height: 4),
+                              Row(
+                                children: [
+                                  Expanded(child: _buildPlayerSlotCard(0)), // TL - Green
+                                  const SizedBox(width: 4),
+                                  Expanded(child: _buildPlayerSlotCard(2)), // BR - Yellow
+                                ],
+                              ),
+                            ],
+                          ),
+                          Positioned(
+                            left: 85,
+                            top: 30,
+                            child: Container(
+                              padding: const EdgeInsets.all(4),
+                              decoration: const BoxDecoration(
+                                color: Color(0xFFFFC233),
+                                shape: BoxShape.circle,
+                                boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 4)],
+                              ),
+                              child: const Icon(Icons.edit, color: Colors.white, size: 14),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  flex: 1,
+                  child: Column(
+                    children: [
+                      _sectionHeader('Select Board:'),
+                      const SizedBox(height: 8),
+                      _buildBoardPreviewForHome(),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const Divider(color: Color(0xFFFFC233), thickness: 2, height: 2),
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _sectionHeader('Options:'),
+                const SizedBox(height: 10),
+                _buildOptionRow(),
+                const SizedBox(height: 12),
+                _buildSpeedRow(),
+              ],
+            ),
+          ),
+          const Divider(color: Color(0xFFFFC233), thickness: 2, height: 2),
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _sectionHeader('Game Rules:'),
+                const SizedBox(height: 8),
+                _buildStartCoinsRow(),
+                _buildRuleRow(
+                  '6 also gives another turn',
+                  _rules.extraTurnOnSix,
+                  onTap: () => _setRules(
+                    _rules.copyWith(extraTurnOnSix: !_rules.extraTurnOnSix),
+                  ),
+                ),
+                _buildRuleRow(
+                  '6 also brings a coin out',
+                  _rules.openTokenOnSix,
+                  onTap: () => _setRules(
+                    _rules.copyWith(openTokenOnSix: !_rules.openTokenOnSix),
+                  ),
+                ),
+                _buildRuleRow(
+                  'Show safe cells (stars)',
+                  _rules.showSafeCells,
+                  onTap: () => _setRules(
+                    _rules.copyWith(showSafeCells: !_rules.showSafeCells),
+                  ),
+                ),
+                _buildRuleRow(
+                  '3 consecutive rolls of 1 cuts one own coin',
+                  _rules.threeConsecutiveOnesCutOwnCoin,
+                  onTap: () => _setRules(
+                    _rules.copyWith(
+                      threeConsecutiveOnesCutOwnCoin:
+                          !_rules.threeConsecutiveOnesCutOwnCoin,
+                    ),
+                  ),
+                ),
+                _buildRuleRow(
+                  'Skip a turn on 3 consecutive rolls of 1',
+                  _rules.skipTurnAfterThreeOnes,
+                  onTap: () => _setRules(
+                    _rules.copyWith(
+                      skipTurnAfterThreeOnes: !_rules.skipTurnAfterThreeOnes,
+                    ),
+                  ),
+                ),
+                _buildRuleRow(
+                  '3 consecutive rolls of 6 brings a coin out',
+                  _rules.threeConsecutiveSixesBringCoinOut,
+                  onTap: () => _setRules(
+                    _rules.copyWith(
+                      threeConsecutiveSixesBringCoinOut:
+                          !_rules.threeConsecutiveSixesBringCoinOut,
+                    ),
+                  ),
+                ),
+                _buildRuleRow(
+                  'Gains another turn on cutting a coin',
+                  _rules.extraTurnOnCapture,
+                  onTap: () => _setRules(
+                    _rules.copyWith(extraTurnOnCapture: !_rules.extraTurnOnCapture),
+                  ),
+                ),
+                _buildRuleRow(
+                  'Gains another turn on reaching home',
+                  _rules.extraTurnOnHome,
+                  onTap: () => _setRules(
+                    _rules.copyWith(extraTurnOnHome: !_rules.extraTurnOnHome),
+                  ),
+                ),
+                _buildRuleRow(
+                  'Must cut a coin to enter home lane',
+                  _rules.mustCutIfCuttable,
+                  showHelp: true,
+                  onTap: () => _setRules(
+                    _rules.copyWith(mustCutIfCuttable: !_rules.mustCutIfCuttable),
+                  ),
+                ),
+                _buildRuleRow(
+                  'Must cut the coin if it\'s cuttable',
+                  _rules.mustCutIfCuttable,
+                  showHelp: true,
+                  onTap: () => _setRules(
+                    _rules.copyWith(mustCutIfCuttable: !_rules.mustCutIfCuttable),
+                  ),
+                ),
+                _buildRuleRow(
+                  'Must bring a coin out on 1',
+                  _rules.openTokenOnOne,
+                  showHelp: true,
+                  onTap: () => _setRules(
+                    _rules.copyWith(openTokenOnOne: !_rules.openTokenOnOne),
+                  ),
+                ),
+                _buildRuleRow(
+                  '2 coins of same colour form a barrier',
+                  _rules.barrierEnabled,
+                  showHelp: true,
+                  onTap: () => _setRules(
+                    _rules.copyWith(barrierEnabled: !_rules.barrierEnabled),
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(10, 10, 10, 12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            _sectionHeader('Select Players'),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Expanded(child: _buildPlayerSlotCard(0)),
-                const SizedBox(width: 8),
-                Expanded(child: _buildPlayerSlotCard(1)),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Expanded(child: _buildPlayerSlotCard(2)),
-                const SizedBox(width: 8),
-                Expanded(child: _buildPlayerSlotCard(3)),
-              ],
-            ),
-            const SizedBox(height: 12),
-            _sectionHeader('Select Board'),
-            const SizedBox(height: 8),
-            _buildBoardSelector(),
-            const SizedBox(height: 12),
-            _sectionHeader('Options'),
-            const SizedBox(height: 8),
-            _buildOptionRow(),
-            const SizedBox(height: 8),
-            _buildSpeedRow(),
-            const SizedBox(height: 12),
-            _sectionHeader('Game Rules'),
-            const SizedBox(height: 8),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                TextButton(
-                  onPressed: () => _setRules(const LudoRuleSettings(
-                    showSafeCells: true,
-                    openTokenOnOne: true,
-                    openTokenOnSix: true,
-                    extraTurnOnSix: true,
-                    extraTurnOnCapture: true,
-                    extraTurnOnHome: true,
-                    mustCutIfCuttable: true,
-                    barrierEnabled: true,
-                    threeConsecutiveSixesBringCoinOut: true,
-                    threeConsecutiveOnesCutOwnCoin: true,
-                    skipTurnAfterThreeOnes: true,
-                  )),
-                  child: const Text('Use Full Rules'),
-                ),
-                const SizedBox(width: 8),
-                TextButton(
-                  onPressed: () => _setRules(const LudoRuleSettings()),
-                  child: const Text('Reset'),
-                ),
-              ],
-            ),
-            _buildStartCoinsRow(),
-            _buildRuleRow(
-              '${_rules.startCoinsInBase ? "1" : "6"} also gives another turn',
-              _rules.extraTurnOnSix,
-              onTap: () => _setRules(
-                _rules.copyWith(extraTurnOnSix: !_rules.extraTurnOnSix),
-              ),
-            ),
-            _buildRuleRow(
-              '${_rules.startCoinsInBase ? "1" : "6"} also brings a coin out',
-              _rules.openTokenOnSix,
-              onTap: () => _setRules(
-                _rules.copyWith(openTokenOnSix: !_rules.openTokenOnSix),
-              ),
-            ),
-            _buildRuleRow(
-              'Show safe cells (stars)',
-              _rules.showSafeCells,
-              onTap: () => _setRules(
-                _rules.copyWith(showSafeCells: !_rules.showSafeCells),
-              ),
-            ),
-            _buildRuleRow(
-              '3 consecutive rolls of ${_rules.startCoinsInBase ? "6" : "1"} cuts one own coin',
-              _rules.threeConsecutiveOnesCutOwnCoin,
-              onTap: () => _setRules(
-                _rules.copyWith(
-                  threeConsecutiveOnesCutOwnCoin:
-                      !_rules.threeConsecutiveOnesCutOwnCoin,
+    );
+  }
+
+  Widget _buildBoardPreviewForHome() {
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          _selectedBoardIndex = (_selectedBoardIndex + 1) % LudoBoardTheme.themes.length;
+        });
+      },
+      child: Container(
+        height: 70,
+        width: 70,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(4),
+          border: Border.all(color: Colors.black26),
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(4),
+          child: Column(
+            children: [
+              Expanded(
+                child: Row(
+                  children: [
+                    Expanded(child: Container(color: const Color(0xFFE24E44))), // Red
+                    Expanded(child: Container(color: const Color(0xFF3B73F2))), // Blue
+                  ],
                 ),
               ),
-            ),
-            _buildRuleRow(
-              'Skip a turn on 3 consecutive rolls of ${_rules.startCoinsInBase ? "6" : "1"}',
-              _rules.skipTurnAfterThreeOnes,
-              onTap: () => _setRules(
-                _rules.copyWith(
-                  skipTurnAfterThreeOnes: !_rules.skipTurnAfterThreeOnes,
+              Expanded(
+                child: Row(
+                  children: [
+                    Expanded(child: Container(color: const Color(0xFF86D63B))), // Green
+                    Expanded(child: Container(color: const Color(0xFFFFC233))), // Yellow
+                  ],
                 ),
               ),
-            ),
-            _buildRuleRow(
-              '3 consecutive rolls of 6 brings a coin out',
-              _rules.threeConsecutiveSixesBringCoinOut,
-              onTap: () => _setRules(
-                _rules.copyWith(
-                  threeConsecutiveSixesBringCoinOut:
-                      !_rules.threeConsecutiveSixesBringCoinOut,
-                ),
-              ),
-            ),
-            _buildRuleRow(
-              'Gains another turn on cutting a coin',
-              _rules.extraTurnOnCapture,
-              onTap: () => _setRules(
-                _rules.copyWith(extraTurnOnCapture: !_rules.extraTurnOnCapture),
-              ),
-            ),
-            _buildRuleRow(
-              'Gains another turn on reaching home',
-              _rules.extraTurnOnHome,
-              onTap: () => _setRules(
-                _rules.copyWith(extraTurnOnHome: !_rules.extraTurnOnHome),
-              ),
-            ),
-            _buildRuleRow(
-              'Must cut a coin to enter home lane',
-              _rules.mustCutIfCuttable,
-              onTap: () => _setRules(
-                _rules.copyWith(mustCutIfCuttable: !_rules.mustCutIfCuttable),
-              ),
-            ),
-            _buildRuleRow(
-              'Must cut the coin if it\'s cuttable',
-              _rules.mustCutIfCuttable,
-              onTap: () => _setRules(
-                _rules.copyWith(mustCutIfCuttable: !_rules.mustCutIfCuttable),
-              ),
-            ),
-            _buildRuleRow(
-              'Must bring a coin out on 1',
-              _rules.openTokenOnOne,
-              onTap: () => _setRules(
-                _rules.copyWith(openTokenOnOne: !_rules.openTokenOnOne),
-              ),
-            ),
-            _buildRuleRow(
-              '2 coins of same colour form a barrier',
-              _rules.barrierEnabled,
-              onTap: () => _setRules(
-                _rules.copyWith(barrierEnabled: !_rules.barrierEnabled),
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -485,37 +539,24 @@ class _LudoHomeScreenState extends State<LudoHomeScreen>
     final slotType = _playerSlots[index];
 
     final fillColor = switch (color) {
-      PlayerColor.red => const Color(0xFFF1463A),
-      PlayerColor.green => const Color(0xFF59A95A),
-      PlayerColor.yellow => const Color(0xFFF0D63D),
+      PlayerColor.red => const Color(0xFFE24E44),
+      PlayerColor.green => const Color(0xFF86D63B),
+      PlayerColor.yellow => const Color(0xFFFFC233),
       PlayerColor.blue => const Color(0xFF3B73F2),
     };
 
-    // Dimmed color when None
-    final boxColor = slotType == _PlayerSlotType.none
-        ? fillColor.withOpacity(0.35)
-        : fillColor;
-
     final String typeLabel;
-    final IconData typeIcon;
     switch (slotType) {
       case _PlayerSlotType.none:
         typeLabel = 'None';
-        typeIcon = Icons.block;
         break;
       case _PlayerSlotType.human:
-        typeLabel = 'Human';
-        typeIcon = Icons.person;
+        typeLabel = 'Human ${index + 1}';
         break;
       case _PlayerSlotType.computer:
-        typeLabel = 'Computer';
-        typeIcon = Icons.computer;
+        typeLabel = 'Computer ${index + 1}';
         break;
     }
-
-    final displayName = slotType == _PlayerSlotType.none
-        ? '---'
-        : _playerNames[index];
 
     return GestureDetector(
       onTap: () {
@@ -527,73 +568,22 @@ class _LudoHomeScreenState extends State<LudoHomeScreen>
           };
         });
       },
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 250),
-        curve: Curves.easeInOut,
-        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+      child: Container(
+        height: 32,
         decoration: BoxDecoration(
-          color: boxColor,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color: slotType == _PlayerSlotType.none
-                ? Colors.white38
-                : Colors.white,
-            width: 1.5,
-          ),
+          color: fillColor,
+          borderRadius: BorderRadius.circular(6),
+          boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 2, offset: Offset(0, 2))],
         ),
-        child: Row(
-          children: [
-            Icon(typeIcon, color: Colors.white, size: 20),
-            const SizedBox(width: 8),
-            // Type label
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-              decoration: BoxDecoration(
-                color: Colors.black.withOpacity(0.2),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Text(
-                typeLabel,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w800,
-                  fontSize: 11,
-                ),
-              ),
+        child: Center(
+          child: Text(
+            typeLabel,
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w900,
+              fontSize: 14,
             ),
-            const SizedBox(width: 10),
-            // Player name
-            Expanded(
-              child: Text(
-                displayName,
-                style: TextStyle(
-                  color: slotType == _PlayerSlotType.none
-                      ? Colors.white54
-                      : Colors.white,
-                  fontWeight: FontWeight.w700,
-                  fontSize: 14,
-                ),
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-            // Edit pencil icon (only when not None)
-            if (slotType != _PlayerSlotType.none)
-              GestureDetector(
-                onTap: () => _showNameEditDialog(index),
-                child: Container(
-                  padding: const EdgeInsets.all(4),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.25),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: const Icon(
-                    Icons.edit,
-                    color: Colors.white,
-                    size: 16,
-                  ),
-                ),
-              ),
-          ],
+          ),
         ),
       ),
     );
@@ -692,68 +682,131 @@ class _LudoHomeScreenState extends State<LudoHomeScreen>
   }
 
   Widget _buildOptionRow() {
-    return Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      crossAxisAlignment: WrapCrossAlignment.center,
+    return Column(
       children: [
-        const Text('Coins:'),
-        ...List.generate(4, (index) {
-          final value = index + 1;
-          final isSelected = _selectedCoins == value;
-          return _pillChoice(
-            '$value',
-            isSelected,
-            onTap: () => setState(() => _selectedCoins = value),
-            selectedColor: const Color(0xFFFFC233),
-          );
-        }),
-        const SizedBox(width: 4),
-        const Text('Cont. Rolling:'),
-        _pillChoice(
-          _continuousRolling ? 'On' : 'Off',
-          _continuousRolling,
-          onTap: () => setState(() => _continuousRolling = !_continuousRolling),
-          selectedColor: const Color(0xFF59A95A),
+        Row(
+          children: [
+            const Text('Coins:', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 13)),
+            const SizedBox(width: 8),
+            ...List.generate(4, (index) {
+              final val = index + 1;
+              final isSelected = _selectedCoins == val;
+              return Padding(
+                padding: const EdgeInsets.only(right: 6),
+                child: GestureDetector(
+                  onTap: () => setState(() => _selectedCoins = val),
+                  child: Stack(
+                    children: [
+                      Container(
+                        width: 22,
+                        height: 22,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFFC233),
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.black26),
+                        ),
+                        child: Center(
+                          child: Text(
+                            '$val',
+                            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w900),
+                          ),
+                        ),
+                      ),
+                      if (isSelected)
+                        Positioned(
+                          right: -2,
+                          bottom: -2,
+                          child: Container(
+                            decoration: const BoxDecoration(color: Color(0xFF86D63B), shape: BoxShape.circle),
+                            child: const Icon(Icons.check, size: 10, color: Colors.white),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              );
+            }),
+            const Spacer(),
+            const Text('Cont. Rolling:', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 13)),
+            const SizedBox(width: 4),
+            _buildClassicToggleButton(
+              _continuousRolling ? 'On' : 'Off',
+              onTap: () => setState(() => _continuousRolling = !_continuousRolling),
+            ),
+            const SizedBox(width: 4),
+            const Icon(Icons.help_outline, color: Color(0xFFFFC233), size: 18),
+          ],
         ),
-        const SizedBox(width: 4),
-        const Text('Diff. Level:'),
-        _pillChoice(
-          _difficulty.name[0].toUpperCase() + _difficulty.name.substring(1),
-          true,
-          onTap: () => setState(() {
-            _difficulty = switch (_difficulty) {
-              DifficultyLevel.easy => DifficultyLevel.medium,
-              DifficultyLevel.medium => DifficultyLevel.hard,
-              DifficultyLevel.hard => DifficultyLevel.easy,
-            };
-          }),
-          selectedColor: const Color(0xFFFF8A3D),
-        ),
-        const SizedBox(width: 4),
-        const Text('Dice Rolling:'),
-        _pillChoice(
-          _diceRollingFling ? 'Fling' : 'Tap',
-          _diceRollingFling,
-          onTap: () => setState(() => _diceRollingFling = !_diceRollingFling),
-          selectedColor: const Color(0xFF3B73F2),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            const Text('Diff. Level:', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 13)),
+            const SizedBox(width: 4),
+            _buildClassicToggleButton(
+              _difficulty.name[0].toUpperCase() + _difficulty.name.substring(1),
+              onTap: () {
+                setState(() {
+                  _difficulty = switch (_difficulty) {
+                    DifficultyLevel.easy => DifficultyLevel.medium,
+                    DifficultyLevel.medium => DifficultyLevel.hard,
+                    DifficultyLevel.hard => DifficultyLevel.easy,
+                  };
+                });
+              },
+            ),
+            const Spacer(),
+            const Text('Dice Rolling:', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 13)),
+            const SizedBox(width: 4),
+            _buildClassicToggleButton(
+              _diceRollingFling ? 'Fling' : 'Tap',
+              onTap: () => setState(() => _diceRollingFling = !_diceRollingFling),
+            ),
+            const SizedBox(width: 4),
+            const Icon(Icons.help_outline, color: Color(0xFFFFC233), size: 18),
+          ],
         ),
       ],
     );
   }
 
+  Widget _buildClassicToggleButton(String label, {required VoidCallback onTap}) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(4),
+          border: Border.all(color: const Color(0xFF86D63B), width: 1.5),
+        ),
+        child: Text(
+          label,
+          style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 13),
+        ),
+      ),
+    );
+  }
+
   Widget _buildSpeedRow() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    return Row(
       children: [
-        const Text('Coin moving speed:'),
-        Slider(
-          value: _moveSpeed,
-          min: 0.2,
-          max: 1.0,
-          divisions: 8,
-          activeColor: const Color(0xFF59A95A),
-          onChanged: (value) => setState(() => _moveSpeed = value),
+        const Text('Coin moving speed:', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 13)),
+        Expanded(
+          child: SliderTheme(
+            data: SliderTheme.of(context).copyWith(
+              trackHeight: 12,
+              thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 10),
+              overlayShape: const RoundSliderOverlayShape(overlayRadius: 16),
+            ),
+            child: Slider(
+              value: _moveSpeed,
+              min: 0.2,
+              max: 1.0,
+              activeColor: const Color(0xFF86D63B),
+              inactiveColor: const Color(0xFFE0E0E0),
+              onChanged: (value) => setState(() => _moveSpeed = value),
+            ),
+          ),
         ),
       ],
     );
@@ -763,15 +816,14 @@ class _LudoHomeScreenState extends State<LudoHomeScreen>
     String label,
     bool enabled, {
     required VoidCallback onTap,
+    bool showHelp = false,
   }) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.only(bottom: 2),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: const Color(0xFFE4D2A0)),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: const BoxDecoration(
+          border: Border(bottom: BorderSide(color: Color(0xFFFFC233), width: 0.5)),
         ),
         child: Row(
           children: [
@@ -780,25 +832,48 @@ class _LudoHomeScreenState extends State<LudoHomeScreen>
                 label,
                 style: const TextStyle(
                   fontSize: 13,
-                  fontWeight: FontWeight.w600,
+                  fontWeight: FontWeight.w900,
                 ),
               ),
             ),
+            if (showHelp)
+              Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: Container(
+                  width: 20,
+                  height: 20,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFC233),
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white, width: 1),
+                  ),
+                  child: const Center(
+                    child: Text(
+                      '?',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
             GestureDetector(
               onTap: onTap,
               child: Container(
-                width: 28,
-                height: 28,
+                width: 22,
+                height: 22,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: enabled
-                      ? const Color(0xFF59A95A)
-                      : const Color(0xFFF1463A),
+                  color: enabled ? const Color(0xFF86D63B) : const Color(0xFFE24E44),
+                  border: Border.all(color: Colors.white, width: 1),
+                  boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 2)],
                 ),
                 child: Icon(
                   enabled ? Icons.check : Icons.close,
                   color: Colors.white,
-                  size: 18,
+                  size: 14,
                 ),
               ),
             ),
@@ -810,38 +885,30 @@ class _LudoHomeScreenState extends State<LudoHomeScreen>
 
   Widget _buildStartCoinsRow() {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: const Color(0xFFE4D2A0)),
-        ),
-        child: Row(
-          children: [
-            const Expanded(
-              child: Text(
-                'Start coins at:',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                ),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      child: Row(
+        children: [
+          const Expanded(
+            child: Text(
+              'Start coins at:',
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w900,
               ),
             ),
-            _buildStartCoinsIcon(
-              isBase: false,
-              isSelected: !_rules.startCoinsInBase,
-              onTap: () => _setRules(_rules.copyWith(startCoinsInBase: false)),
-            ),
-            const SizedBox(width: 8),
-            _buildStartCoinsIcon(
-              isBase: true,
-              isSelected: _rules.startCoinsInBase,
-              onTap: () => _setRules(_rules.copyWith(startCoinsInBase: true)),
-            ),
-          ],
-        ),
+          ),
+          _buildStartCoinsIcon(
+            isBase: false, // 1 icon
+            isSelected: !_rules.startCoinsInBase,
+            onTap: () => _setRules(_rules.copyWith(startCoinsInBase: false)),
+          ),
+          const SizedBox(width: 12),
+          _buildStartCoinsIcon(
+            isBase: true, // 6 icon
+            isSelected: _rules.startCoinsInBase,
+            onTap: () => _setRules(_rules.copyWith(startCoinsInBase: true)),
+          ),
+        ],
       ),
     );
   }
@@ -860,37 +927,47 @@ class _LudoHomeScreenState extends State<LudoHomeScreen>
             width: 32,
             height: 32,
             decoration: BoxDecoration(
-              color: const Color(0xFFFFC233),
+              color: const Color(0xFF86D63B),
               borderRadius: BorderRadius.circular(6),
               border: Border.all(
-                color: isSelected ? const Color(0xFF59A95A) : Colors.transparent,
+                color: isSelected ? const Color(0xFFFFC233) : Colors.transparent,
                 width: 2,
               ),
             ),
-            child: isBase
-                ? Column(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                        children: [_buildCoinDot(8), _buildCoinDot(8)],
-                      ),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                        children: [_buildCoinDot(8), _buildCoinDot(8)],
-                      ),
-                    ],
-                  )
-                : Center(child: _buildCoinDot(16)),
+            child: Container(
+              margin: const EdgeInsets.all(2),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: isBase
+                  ? Column(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                          children: [_buildCoinDot(5), _buildCoinDot(5)],
+                        ),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                          children: [_buildCoinDot(5), _buildCoinDot(5)],
+                        ),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                          children: [_buildCoinDot(5), _buildCoinDot(5)],
+                        ),
+                      ],
+                    )
+                  : Center(child: _buildCoinDot(12)),
+            ),
           ),
           if (isSelected)
             Positioned(
-              right: -6,
-              bottom: -6,
+              right: -4,
+              bottom: -4,
               child: Container(
-                padding: const EdgeInsets.all(2),
                 decoration: const BoxDecoration(
-                  color: Color(0xFF59A95A),
+                  color: Color(0xFF86D63B),
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(Icons.check, color: Colors.white, size: 12),
@@ -924,24 +1001,73 @@ class _LudoHomeScreenState extends State<LudoHomeScreen>
   }
 
   Widget _buildPrimaryActions(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: _actionButton(
-            'Exit',
-            const Color(0xFFE24E44),
-            () => Navigator.maybePop(context),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Row(
+        children: [
+          Expanded(
+            child: _classicActionButton(
+              'Exit',
+              const Color(0xFFE24E44),
+              () => Navigator.maybePop(context),
+            ),
+          ),
+          const SizedBox(width: 30),
+          Expanded(
+            child: _classicActionButton(
+              'Play',
+              const Color(0xFF86D63B),
+              () => _startSelectedGame(context),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _classicActionButton(String label, Color color, VoidCallback onPressed) {
+    return GestureDetector(
+      onTap: onPressed,
+      child: Container(
+        height: 48,
+        decoration: BoxDecoration(
+          color: color,
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: Colors.white, width: 2),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.3),
+              offset: const Offset(0, 4),
+              blurRadius: 4,
+            ),
+            BoxShadow(
+              color: color.withOpacity(0.5),
+              offset: const Offset(0, -4),
+              blurRadius: 0,
+            ),
+          ],
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              color.withOpacity(0.8),
+              color,
+            ],
           ),
         ),
-        const SizedBox(width: 14),
-        Expanded(
-          child: _actionButton(
-            'Play',
-            const Color(0xFF86D63B),
-            () => _startSelectedGame(context),
+        child: Center(
+          child: Text(
+            label,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 22,
+              fontWeight: FontWeight.w900,
+              fontStyle: FontStyle.italic,
+              shadows: [Shadow(color: Colors.black45, blurRadius: 2, offset: Offset(1, 1))],
+            ),
           ),
         ),
-      ],
+      ),
     );
   }
 
@@ -1007,17 +1133,17 @@ class _LudoHomeScreenState extends State<LudoHomeScreen>
 
   Widget _sectionHeader(String title) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
         color: const Color(0xFFFFC233),
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(4),
       ),
       child: Text(
         title,
         style: const TextStyle(
           color: Colors.black,
           fontWeight: FontWeight.w900,
-          fontSize: 16,
+          fontSize: 14,
         ),
       ),
     );
@@ -1333,29 +1459,125 @@ class _LudoHomeScreenState extends State<LudoHomeScreen>
   void _showSettings(BuildContext context) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Settings'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: const [
-            ListTile(
-              title: Text('Sound Effects'),
-              trailing: Icon(Icons.volume_up),
+      builder: (context) => Dialog(
+        backgroundColor: Colors.transparent,
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            Container(
+              width: 320,
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF9F5E8),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: const Color(0xFFFFC233), width: 3),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const SizedBox(height: 10),
+                  _sectionHeader('SETTINGS'),
+                  const SizedBox(height: 20),
+                  _settingsRow('Sounds', true, onTap: () {}),
+                  const SizedBox(height: 8),
+                  _settingsRow('Music', true, onTap: () {}),
+                  const SizedBox(height: 8),
+                  _settingsRow('Vibration', true, onTap: () {}),
+                  const SizedBox(height: 16),
+                  const Divider(color: Color(0xFFFFC233), thickness: 1),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(child: _settingsMinorButton('Policy')),
+                      const SizedBox(width: 8),
+                      Expanded(child: _settingsMinorButton('Terms')),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Expanded(child: _settingsMinorButton('Credits')),
+                      const SizedBox(width: 8),
+                      Expanded(child: _settingsMinorButton('Rate Us')),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                ],
+              ),
             ),
-            ListTile(
-              title: Text('Background Music'),
-              trailing: Icon(Icons.music_note),
+            Positioned(
+              right: -10,
+              top: -10,
+              child: GestureDetector(
+                onTap: () => Navigator.pop(context),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFE24E44),
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white, width: 2),
+                    boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 4)],
+                  ),
+                  child: const Icon(Icons.close, color: Colors.white, size: 28),
+                ),
+              ),
             ),
-            ListTile(title: Text('Vibration'), trailing: Icon(Icons.vibration)),
-            ListTile(title: Text('Language'), trailing: Icon(Icons.language)),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Close'),
-          ),
-        ],
+      ),
+    );
+  }
+
+  Widget _settingsRow(String label, bool enabled, {required VoidCallback onTap}) {
+    return Container(
+      height: 44,
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFC233).withOpacity(0.3),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: const Color(0xFFFFC233), width: 1.5),
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Colors.white, const Color(0xFFFFC233).withOpacity(0.2)],
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              label,
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
+            ),
+            Container(
+              width: 24,
+              height: 24,
+              decoration: const BoxDecoration(
+                color: Color(0xFF86D63B),
+                shape: BoxShape.circle,
+                boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 2)],
+              ),
+              child: const Icon(Icons.check, color: Colors.white, size: 16),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _settingsMinorButton(String label) {
+    return Container(
+      height: 36,
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFC233),
+        borderRadius: BorderRadius.circular(10),
+        boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 2, offset: Offset(0, 2))],
+      ),
+      child: Center(
+        child: Text(
+          label,
+          style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 14),
+        ),
       ),
     );
   }
