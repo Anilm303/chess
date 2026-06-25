@@ -716,9 +716,14 @@ class CallService extends ChangeNotifier {
           {'urls': 'stun:stun2.l.google.com:19302'},
           {'urls': 'stun:stun3.l.google.com:19302'},
           {'urls': 'stun:stun4.l.google.com:19302'},
+          {'urls': 'stun:stun.l.google.com:19305'},
           {'urls': 'stun:stun.services.mozilla.com'},
+          {'urls': 'stun:stun.voiparound.com'},
+          {'urls': 'stun:stun.voipbuster.com'},
+          {'urls': 'stun:stun.voipstunt.com'},
           
-          // NOTE: REPLACE THESE WITH YOUR OWN PAID/FREE TWILIO OR METERED.CA TURN CREDENTIALS FOR PRODUCTION
+          // IMPORTANT: Public TURN servers are often blocked. 
+          // For 100% success on Mobile Data, you MUST use a Private TURN server.
           {
             'urls': [
               'turn:openrelay.metered.ca:443?transport=tcp',
@@ -729,15 +734,9 @@ class CallService extends ChangeNotifier {
             'username': 'openrelayproject',
             'credential': 'openrelayproject',
           },
-          // Backup free public TURN server
-          {
-            'urls': 'turn:relay.metered.ca:443',
-            'username': 'openrelayproject',
-            'credential': 'openrelayproject',
-          }
         ],
         'iceTransportPolicy': 'all',
-        'iceCandidatePoolSize': 10,
+        'iceCandidatePoolSize': 20, // Pre-gather more candidates for faster NAT traversal
         'bundlePolicy': 'max-bundle',
         'rtcpMuxPolicy': 'require',
         'sdpSemantics': 'unified-plan',

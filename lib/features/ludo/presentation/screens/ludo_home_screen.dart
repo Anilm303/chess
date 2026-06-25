@@ -267,70 +267,41 @@ class _LudoHomeScreenState extends State<LudoHomeScreen>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                _sectionHeader('Select Players:'),
+                const SizedBox(height: 8),
+                Stack(
+                  alignment: Alignment.center,
                   children: [
-                    Expanded(
-                      flex: 2,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _sectionHeader('Select Players:'),
-                          const SizedBox(height: 8),
-                          Stack(
-                            alignment: Alignment.center,
-                            children: [
-                              Column(
-                                children: [
-                                  Row(
-                                    children: [
-                                      Expanded(child: _buildPlayerSlotCard(0)), // Top Left - Yellow
-                                      const SizedBox(width: 4),
-                                      Expanded(child: _buildPlayerSlotCard(1)), // Top Right - Green
-                                    ],
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Row(
-                                    children: [
-                                      Expanded(child: _buildPlayerSlotCard(2)), // Bottom Left - Blue
-                                      const SizedBox(width: 4),
-                                      Expanded(child: _buildPlayerSlotCard(3)), // Bottom Right - Red
-                                    ],
-                                  ),
-                                ],
-                              ),
-                              GestureDetector(
-                                onTap: _showAllHumanNamesEditDialog,
-                                child: Container(
-                                  padding: const EdgeInsets.all(6),
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFFFFC233),
-                                    shape: BoxShape.circle,
-                                    border: Border.all(color: Colors.white, width: 2),
-                                    boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 4)],
-                                  ),
-                                  child: const Icon(Icons.edit, color: Colors.white, size: 18),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
+                    Row(
+                      children: [
+                        Expanded(child: _buildPlayerSlotCard(0)), 
+                        const SizedBox(width: 4),
+                        Expanded(child: _buildPlayerSlotCard(1)),
+                        const SizedBox(width: 4),
+                        Expanded(child: _buildPlayerSlotCard(2)),
+                        const SizedBox(width: 4),
+                        Expanded(child: _buildPlayerSlotCard(3)),
+                      ],
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      flex: 1,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _sectionHeader('Select Board:'),
-                          const SizedBox(height: 8),
-                          _buildBoardPreviewForHome(),
-                        ],
+                    GestureDetector(
+                      onTap: _showAllHumanNamesEditDialog,
+                      child: Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFFC233),
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white, width: 2),
+                          boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 4)],
+                        ),
+                        child: const Icon(Icons.edit, color: Colors.white, size: 18),
                       ),
                     ),
                   ],
                 ),
+                const SizedBox(height: 16),
+                _sectionHeader('Select Board:'),
+                const SizedBox(height: 8),
+                _buildBoardPreviewForHome(),
               ],
             ),
           ),
