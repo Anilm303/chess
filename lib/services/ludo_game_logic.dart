@@ -90,6 +90,7 @@ class LudoGameLogic {
     int diceValue,
     PlayerColor playerColor, {
     LudoRuleSettings rules = const LudoRuleSettings(),
+    bool hasCaptured = true,
   }) {
     // opening token
     if (token.position == -1) {
@@ -114,6 +115,12 @@ class LudoGameLogic {
     final int totalSteps = stepsFromStart + diceValue;
 
     if (totalSteps > mainBoardSize - 2) {
+      // RULE: Must capture to enter home lane
+      if (rules.mustCaptureToEnterHome && !hasCaptured) {
+        // Player hasn't captured any coin yet, keep circling the board
+        return (token.position + diceValue) % mainBoardSize;
+      }
+
       final int stepsIntoHome = totalSteps - (mainBoardSize - 2);
       if (stepsIntoHome <= homePathSize) {
         return mainBoardSize +
@@ -160,12 +167,14 @@ class LudoGameLogic {
     int diceValue,
     List<Player> players, {
     LudoRuleSettings rules = const LudoRuleSettings(),
+    bool hasCaptured = true,
   }) {
     final newPos = calculateNewPosition(
       token,
       diceValue,
       token.playerColor,
       rules: rules,
+      hasCaptured: hasCaptured,
     );
     if (newPos < 0 || newPos >= mainBoardSize) return false;
     if (isSafePosition(newPos, token.playerColor, rules: rules)) return false;
@@ -187,6 +196,16 @@ class LudoGameLogic {
         .where((t) => canTokenBeMoved(t, diceValue, rules: rules))
         .toList();
 
+    if (candidates.isEmpty) return [];
+
+    // RULE: Must bring a coin out on 1 (if enabled and possible)
+    if (diceValue == 1 && rules.openTokenOnOne) {
+      final baseTokens = candidates.where((t) => t.position == -1).toList();
+      if (baseTokens.isNotEmpty) {
+        return baseTokens; // Forced to move tokens out of base
+      }
+    }
+
     if (!rules.mustCutIfCuttable || allPlayers == null) {
       return candidates;
     }
@@ -194,7 +213,7 @@ class LudoGameLogic {
     final capturingTokens = candidates
         .where(
           (token) =>
-              canTokenCapture(token, diceValue, allPlayers, rules: rules),
+              canTokenCapture(token, diceValue, allPlayers, rules: rules, hasCaptured: player.hasCaptured),
         )
         .toList();
 
@@ -256,6 +275,7 @@ class LudoGameLogic {
       diceValue,
       player.color,
       rules: rules,
+      hasCaptured: player.hasCaptured,
     );
     final outcome = MoveOutcome(
       moved: newPos != token.position,
@@ -293,6 +313,7 @@ class LudoGameLogic {
           )) {
         killTokensAtPosition(gameState.players, newPos, player.color);
         outcome.captured = true;
+        player.hasCaptured = true; // Mark player as having captured a coin
       }
     }
 
@@ -302,19 +323,20 @@ class LudoGameLogic {
   static bool checkWin(Player player) => player.hasWon;
 
   static bool isBonusDice(int diceValue, LudoRuleSettings rules) =>
-      diceValue == (rules.startCoinsInBase ? 1 : 6);
+      diceValue == (rules.startCoinsInBase ? 6 : 1);
 
   static bool isPenaltyDice(int diceValue, LudoRuleSettings rules) =>
-      diceValue == (rules.startCoinsInBase ? 6 : 1);
+      diceValue == (rules.startCoinsInBase ? 1 : 6);
 
   static bool isMoveLegal(
     Token token,
     int diceValue,
     int fromPosition,
     int toPosition,
+    bool hasCaptured,
   ) {
     if (!canTokenBeMoved(token, diceValue)) return false;
-    final newPos = calculateNewPosition(token, diceValue, token.playerColor);
+    final newPos = calculateNewPosition(token, diceValue, token.playerColor, hasCaptured: hasCaptured);
     return newPos == toPosition;
   }
 
@@ -357,9 +379,23 @@ class GameController {
     required GameMode gameMode,
     LudoRuleSettings rules = const LudoRuleSettings(),
   }) {
+    // Sort players in the specific order: Yellow -> Green -> Red -> Blue (Clockwise)
+    final order = [PlayerColor.yellow, PlayerColor.green, PlayerColor.red, PlayerColor.blue];
+    final List<Player> sortedPlayers = [];
+    
+    for (final color in order) {
+      final p = players.where((p) => p.color == color).toList();
+      if (p.isNotEmpty) sortedPlayers.add(p.first);
+    }
+    
+    // Add any remaining players not in the order list (fallback)
+    for (final p in players) {
+      if (!sortedPlayers.contains(p)) sortedPlayers.add(p);
+    }
+
     gameState = GameState(
       id: const Uuid().v4(),
-      players: players,
+      players: sortedPlayers,
       createdAt: DateTime.now(),
       gameMode: gameMode,
       rules: rules,

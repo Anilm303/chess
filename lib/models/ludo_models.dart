@@ -20,6 +20,7 @@ class LudoRuleSettings {
   final bool extraTurnOnCapture;
   final bool extraTurnOnHome;
   final bool mustCutIfCuttable;
+  final bool mustCaptureToEnterHome;
   final bool barrierEnabled;
   final bool threeConsecutiveSixesBringCoinOut;
   final bool threeConsecutiveOnesCutOwnCoin;
@@ -34,6 +35,7 @@ class LudoRuleSettings {
     this.extraTurnOnCapture = true,
     this.extraTurnOnHome = true,
     this.mustCutIfCuttable = true,
+    this.mustCaptureToEnterHome = true,
     this.barrierEnabled = true,
     this.threeConsecutiveSixesBringCoinOut = false,
     this.threeConsecutiveOnesCutOwnCoin = false,
@@ -49,6 +51,7 @@ class LudoRuleSettings {
     bool? extraTurnOnCapture,
     bool? extraTurnOnHome,
     bool? mustCutIfCuttable,
+    bool? mustCaptureToEnterHome,
     bool? barrierEnabled,
     bool? threeConsecutiveSixesBringCoinOut,
     bool? threeConsecutiveOnesCutOwnCoin,
@@ -63,6 +66,7 @@ class LudoRuleSettings {
       extraTurnOnCapture: extraTurnOnCapture ?? this.extraTurnOnCapture,
       extraTurnOnHome: extraTurnOnHome ?? this.extraTurnOnHome,
       mustCutIfCuttable: mustCutIfCuttable ?? this.mustCutIfCuttable,
+      mustCaptureToEnterHome: mustCaptureToEnterHome ?? this.mustCaptureToEnterHome,
       barrierEnabled: barrierEnabled ?? this.barrierEnabled,
       threeConsecutiveSixesBringCoinOut:
           threeConsecutiveSixesBringCoinOut ??
@@ -85,6 +89,7 @@ class LudoRuleSettings {
       extraTurnOnCapture: json['extraTurnOnCapture'] as bool? ?? true,
       extraTurnOnHome: json['extraTurnOnHome'] as bool? ?? true,
       mustCutIfCuttable: json['mustCutIfCuttable'] as bool? ?? true,
+      mustCaptureToEnterHome: json['mustCaptureToEnterHome'] as bool? ?? true,
       barrierEnabled: json['barrierEnabled'] as bool? ?? true,
       threeConsecutiveSixesBringCoinOut:
           json['threeConsecutiveSixesBringCoinOut'] as bool? ?? false,
@@ -104,6 +109,7 @@ class LudoRuleSettings {
       'extraTurnOnCapture': extraTurnOnCapture,
       'extraTurnOnHome': extraTurnOnHome,
       'mustCutIfCuttable': mustCutIfCuttable,
+      'mustCaptureToEnterHome': mustCaptureToEnterHome,
       'barrierEnabled': barrierEnabled,
       'threeConsecutiveSixesBringCoinOut': threeConsecutiveSixesBringCoinOut,
       'threeConsecutiveOnesCutOwnCoin': threeConsecutiveOnesCutOwnCoin,
@@ -174,6 +180,7 @@ class Player {
   int consecutiveOnes;
   int skipTurns;
   int tokensReachedHome;
+  bool hasCaptured;
 
   Player({
     required this.id,
@@ -188,6 +195,7 @@ class Player {
     this.consecutiveOnes = 0,
     this.skipTurns = 0,
     this.tokensReachedHome = 0,
+    this.hasCaptured = false,
   }) : tokens = tokens ?? _createTokens(color, tokenCount);
 
   static List<Token> _createTokens(PlayerColor color, int tokenCount) {
@@ -218,6 +226,7 @@ class Player {
       consecutiveOnes: json['consecutiveOnes'] as int? ?? 0,
       skipTurns: json['skipTurns'] as int? ?? 0,
       tokensReachedHome: json['tokensReachedHome'] as int? ?? 0,
+      hasCaptured: json['hasCaptured'] as bool? ?? false,
     );
   }
 
@@ -235,6 +244,7 @@ class Player {
       'consecutiveOnes': consecutiveOnes,
       'skipTurns': skipTurns,
       'tokensReachedHome': tokensReachedHome,
+      'hasCaptured': hasCaptured,
     };
   }
 
@@ -252,6 +262,7 @@ class Player {
       consecutiveOnes: consecutiveOnes,
       skipTurns: skipTurns,
       tokensReachedHome: tokensReachedHome,
+      hasCaptured: hasCaptured,
     );
   }
 }
@@ -262,12 +273,12 @@ class BoardConfig {
   static const int homePositions = 6; // Home path positions
   static const int boardSize = totalPositions + homePositions;
 
-  // Starting positions for each player (clockwise)
+  // Starting positions for each player (Matching the "Select Players" buttons order)
   static const Map<PlayerColor, int> playerStartPositions = {
-    PlayerColor.blue: 0,
-    PlayerColor.green: 13,
-    PlayerColor.red: 26,
-    PlayerColor.yellow: 39,
+    PlayerColor.yellow: 13, // Top Left
+    PlayerColor.green: 26,  // Top Right
+    PlayerColor.red: 39,    // Bottom Right
+    PlayerColor.blue: 0,    // Bottom Left
   };
 
   // Safe star positions (cannot be killed)
@@ -275,10 +286,10 @@ class BoardConfig {
 
   // Home entry positions (must have exact dice)
   static const Map<PlayerColor, int> homeEntryPositions = {
+    PlayerColor.yellow: 13,
+    PlayerColor.green: 26,
+    PlayerColor.red: 39,
     PlayerColor.blue: 0,
-    PlayerColor.green: 13,
-    PlayerColor.red: 26,
-    PlayerColor.yellow: 39,
   };
 
   // Home path start (after reaching position 51)

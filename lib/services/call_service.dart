@@ -93,9 +93,10 @@ class CallService extends ChangeNotifier {
     _socket = IO.io(
       baseUrl,
       IO.OptionBuilder()
-          .setTransports(['websocket', 'polling'])
+          .setTransports(['websocket']) // Force websocket for lower latency signaling
           .disableAutoConnect()
           .setQuery({'token': accessToken})
+          .setExtraHeaders({'Connection': 'upgrade', 'Upgrade': 'websocket'})
           .build(),
     );
 
@@ -334,12 +335,9 @@ class CallService extends ChangeNotifier {
       // mark remote SDP set and flush buffered ICE
       _remoteSdpSet[from] = true;
       await _flushIceCandidatesForPeer(from);
-      if (_status != CallStatus.connected) {
-        _status = CallStatus.connected;
-        _startCallDurationTimer();
-      }
+      
+      _log('✅ Answer processed for $from');
       notifyListeners();
-      _log('✅ Answer processed');
     } catch (e) {
       _log('❌ Error handling answer: $e');
       _error = 'Failed to handle answer: $e';
@@ -585,9 +583,14 @@ class CallService extends ChangeNotifier {
   /// Ensure audio mode is set to communication for better echo cancellation
   Future<void> _setAudioMode() async {
     try {
-      // Small delay to ensure hardware is ready
-      await Future.delayed(const Duration(milliseconds: 500));
       await Helper.setSpeakerphoneOn(true);
+      // Ensure audio is directed to the right output for communication
+      if (kIsWeb) return;
+      // This is crucial for Android/iOS to actually play the received audio through the speaker
+      _localStream?.getAudioTracks().forEach((track) {
+        track.enabled = true;
+      });
+      _log('🔊 Audio mode set to speakerphone and tracks enabled');
     } catch (e) {
       _log('⚠️ Error setting audio mode: $e');
     }
@@ -711,6 +714,11 @@ class CallService extends ChangeNotifier {
           {'urls': 'stun:stun.l.google.com:19302'},
           {'urls': 'stun:stun1.l.google.com:19302'},
           {'urls': 'stun:stun2.l.google.com:19302'},
+          {'urls': 'stun:stun3.l.google.com:19302'},
+          {'urls': 'stun:stun4.l.google.com:19302'},
+          {'urls': 'stun:stun.services.mozilla.com'},
+          
+          // NOTE: REPLACE THESE WITH YOUR OWN PAID/FREE TWILIO OR METERED.CA TURN CREDENTIALS FOR PRODUCTION
           {
             'urls': [
               'turn:openrelay.metered.ca:443?transport=tcp',
@@ -721,9 +729,15 @@ class CallService extends ChangeNotifier {
             'username': 'openrelayproject',
             'credential': 'openrelayproject',
           },
+          // Backup free public TURN server
+          {
+            'urls': 'turn:relay.metered.ca:443',
+            'username': 'openrelayproject',
+            'credential': 'openrelayproject',
+          }
         ],
         'iceTransportPolicy': 'all',
-        'iceCandidatePoolSize': 0,
+        'iceCandidatePoolSize': 10,
         'bundlePolicy': 'max-bundle',
         'rtcpMuxPolicy': 'require',
         'sdpSemantics': 'unified-plan',
@@ -735,15 +749,16 @@ class CallService extends ChangeNotifier {
         'optional': [
           {'DtlsSrtpKeyAgreement': true},
           {'googIPv6': true},
+          {'googImprovedWifiBwe': true},
         ],
       });
 
       pc.onIceGatheringState = (state) {
-        _log('🧊 ICE Gathering State: $state');
+        _log('🧊 ICE Gathering State for $remoteUser: $state');
       };
 
       pc.onIceConnectionState = (state) {
-        _log('🧊 ICE Connection State: $state');
+        _log('🧊 ICE Connection State for $remoteUser: $state');
         if (state == RTCIceConnectionState.RTCIceConnectionStateConnected ||
             state == RTCIceConnectionState.RTCIceConnectionStateCompleted) {
           if (_status != CallStatus.connected) {
@@ -754,8 +769,31 @@ class CallService extends ChangeNotifier {
           }
         }
         if (state == RTCIceConnectionState.RTCIceConnectionStateFailed) {
-          _log('❌ ICE Connection Failed. Attempting ICE Restart...');
+          _log('❌ ICE Connection Failed for $remoteUser. Attempting ICE Restart...');
           pc.restartIce();
+          
+          // If it fails for a long time, show error
+          Future.delayed(const Duration(seconds: 10), () {
+            if (_status == CallStatus.connecting) {
+              _error = "Connection failed. Please check your internet or try again.";
+              _status = CallStatus.failed;
+              notifyListeners();
+            }
+          });
+        }
+        if (state == RTCIceConnectionState.RTCIceConnectionStateDisconnected) {
+          _log('⚠️ ICE Disconnected for $remoteUser. Waiting for reconnection...');
+        }
+        if (state == RTCIceConnectionState.RTCIceConnectionStateChecking) {
+          // Set a fallback timeout for "Connecting" state
+          Future.delayed(const Duration(seconds: 25), () {
+            if (_status == CallStatus.connecting) {
+              _log('⏱️ Connection timeout reached');
+              _error = "Connection timed out. Remote peer might be behind a restricted firewall.";
+              _status = CallStatus.failed;
+              notifyListeners();
+            }
+          });
         }
       };
 
@@ -775,7 +813,14 @@ class CallService extends ChangeNotifier {
       };
 
       pc.onIceCandidate = (candidate) {
-        _log('🧊 ICE candidate');
+        String candStr = candidate.candidate ?? '';
+        String type = 'unknown';
+        if (candStr.contains('typ host')) type = 'HOST';
+        if (candStr.contains('typ srflx')) type = 'STUN';
+        if (candStr.contains('typ relay')) type = 'TURN';
+        
+        _log('🧊 ICE candidate ($type): ${candStr.split(' ')[4]}:${candStr.split(' ')[5]}');
+        
         _socket?.emit('call_ice_candidate', {
           'to': remoteUser,
           'from': _currentUsername,
@@ -786,14 +831,15 @@ class CallService extends ChangeNotifier {
       };
 
       pc.onTrack = (event) async {
-        _log(
-          '📥 Track received: ${event.track.kind}, enabled=${event.track.enabled}',
-        );
+        _log('📥 Track received: ${event.track.kind}, enabled=${event.track.enabled}');
         
-        // Ensure track is enabled
+        // IMPORTANT: Explicitly enable the track
         event.track.enabled = true;
-        _log('   Streams count: ${event.streams.length}');
-        _log('   Track ID: ${event.track.id}');
+        
+        if (event.track.kind == 'audio') {
+          _log('🎵 Remote audio track detected, forcing speaker output');
+          await _setAudioMode();
+        }
 
         if (!_remoteRenderers.containsKey(remoteUser)) {
           _log('🎥 Creating renderer for $remoteUser');
@@ -841,10 +887,6 @@ class CallService extends ChangeNotifier {
         }
 
         _updateParticipant(remoteUser);
-        if (_status != CallStatus.connected) {
-          _status = CallStatus.connected;
-          _startCallDurationTimer();
-        }
         notifyListeners();
       };
 
@@ -922,7 +964,8 @@ class CallService extends ChangeNotifier {
         return;
       }
       _offerInProgress.add(remoteUser);
-      _log('📤 Sending offer to $remoteUser');
+      _log('📤 Preparing offer for $remoteUser');
+      
       final pc = _peerConnections[remoteUser];
       if (pc == null) {
         _log('❌ No peer for offer to $remoteUser');
@@ -930,7 +973,15 @@ class CallService extends ChangeNotifier {
         return;
       }
 
-      final offer = await pc.createOffer();
+      // Small delay to allow some ICE gathering before creating the offer
+      await Future.delayed(const Duration(milliseconds: 600));
+
+      final offer = await pc.createOffer({
+        'mandatory': {
+          'OfferToReceiveAudio': true,
+          'OfferToReceiveVideo': true,
+        },
+      });
       await pc.setLocalDescription(offer);
 
       _offeredPeers.add(remoteUser);

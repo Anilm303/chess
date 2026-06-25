@@ -22,10 +22,10 @@ class _LudoHomeScreenState extends State<LudoHomeScreen>
   late AnimationController _animationController;
   bool _navigating = false;
   final List<PlayerColor> _slotColors = const [
-    PlayerColor.green, // TL
-    PlayerColor.red, // TR
-    PlayerColor.yellow, // BR
-    PlayerColor.blue, // BL
+    PlayerColor.yellow, // Top Left (matching board image)
+    PlayerColor.green,  // Top Right
+    PlayerColor.blue,   // Bottom Left
+    PlayerColor.red,    // Bottom Right
   ];
   late List<_PlayerSlotType> _playerSlots;
   late List<String> _playerNames;
@@ -264,66 +264,72 @@ class _LudoHomeScreenState extends State<LudoHomeScreen>
         children: [
           Padding(
             padding: const EdgeInsets.all(8.0),
-            child: Row(
+            child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(
-                  flex: 3,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _sectionHeader('Select Players:'),
-                      const SizedBox(height: 8),
-                      Stack(
-                        clipBehavior: Clip.none,
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      flex: 2,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Column(
+                          _sectionHeader('Select Players:'),
+                          const SizedBox(height: 8),
+                          Stack(
+                            alignment: Alignment.center,
                             children: [
-                              Row(
+                              Column(
                                 children: [
-                                  Expanded(child: _buildPlayerSlotCard(1)), // TR - Red
-                                  const SizedBox(width: 4),
-                                  Expanded(child: _buildPlayerSlotCard(3)), // BL - Blue
+                                  Row(
+                                    children: [
+                                      Expanded(child: _buildPlayerSlotCard(0)), // Top Left - Yellow
+                                      const SizedBox(width: 4),
+                                      Expanded(child: _buildPlayerSlotCard(1)), // Top Right - Green
+                                    ],
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Row(
+                                    children: [
+                                      Expanded(child: _buildPlayerSlotCard(2)), // Bottom Left - Blue
+                                      const SizedBox(width: 4),
+                                      Expanded(child: _buildPlayerSlotCard(3)), // Bottom Right - Red
+                                    ],
+                                  ),
                                 ],
                               ),
-                              const SizedBox(height: 4),
-                              Row(
-                                children: [
-                                  Expanded(child: _buildPlayerSlotCard(0)), // TL - Green
-                                  const SizedBox(width: 4),
-                                  Expanded(child: _buildPlayerSlotCard(2)), // BR - Yellow
-                                ],
+                              GestureDetector(
+                                onTap: _showAllHumanNamesEditDialog,
+                                child: Container(
+                                  padding: const EdgeInsets.all(6),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFFFC233),
+                                    shape: BoxShape.circle,
+                                    border: Border.all(color: Colors.white, width: 2),
+                                    boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 4)],
+                                  ),
+                                  child: const Icon(Icons.edit, color: Colors.white, size: 18),
+                                ),
                               ),
                             ],
                           ),
-                          Positioned(
-                            left: 85,
-                            top: 30,
-                            child: Container(
-                              padding: const EdgeInsets.all(4),
-                              decoration: const BoxDecoration(
-                                color: Color(0xFFFFC233),
-                                shape: BoxShape.circle,
-                                boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 4)],
-                              ),
-                              child: const Icon(Icons.edit, color: Colors.white, size: 14),
-                            ),
-                          ),
                         ],
                       ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  flex: 1,
-                  child: Column(
-                    children: [
-                      _sectionHeader('Select Board:'),
-                      const SizedBox(height: 8),
-                      _buildBoardPreviewForHome(),
-                    ],
-                  ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      flex: 1,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _sectionHeader('Select Board:'),
+                          const SizedBox(height: 8),
+                          _buildBoardPreviewForHome(),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -417,10 +423,10 @@ class _LudoHomeScreenState extends State<LudoHomeScreen>
                 ),
                 _buildRuleRow(
                   'Must cut a coin to enter home lane',
-                  _rules.mustCutIfCuttable,
+                  _rules.mustCaptureToEnterHome,
                   showHelp: true,
                   onTap: () => _setRules(
-                    _rules.copyWith(mustCutIfCuttable: !_rules.mustCutIfCuttable),
+                    _rules.copyWith(mustCaptureToEnterHome: !_rules.mustCaptureToEnterHome),
                   ),
                 ),
                 _buildRuleRow(
@@ -456,44 +462,204 @@ class _LudoHomeScreenState extends State<LudoHomeScreen>
   }
 
   Widget _buildBoardPreviewForHome() {
-    return GestureDetector(
-      onTap: () {
-        setState(() {
-          _selectedBoardIndex = (_selectedBoardIndex + 1) % LudoBoardTheme.themes.length;
-        });
-      },
-      child: Container(
-        height: 70,
-        width: 70,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(4),
-          border: Border.all(color: Colors.black26),
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(4),
-          child: Column(
-            children: [
-              Expanded(
-                child: Row(
-                  children: [
-                    Expanded(child: Container(color: const Color(0xFFE24E44))), // Red
-                    Expanded(child: Container(color: const Color(0xFF3B73F2))), // Blue
-                  ],
-                ),
-              ),
-              Expanded(
-                child: Row(
-                  children: [
-                    Expanded(child: Container(color: const Color(0xFF86D63B))), // Green
-                    Expanded(child: Container(color: const Color(0xFFFFC233))), // Yellow
-                  ],
-                ),
-              ),
+    return SizedBox(
+      height: 90, // Slightly taller for more detail
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        physics: const BouncingScrollPhysics(),
+        itemCount: LudoBoardTheme.themes.length,
+        itemBuilder: (context, index) {
+          final isSelected = _selectedBoardIndex == index;
+          final theme = LudoBoardTheme.themes[index];
+          
+          // Create a dummy game state for the painter to show base UI
+          final dummyGameState = GameState(
+            id: 'preview',
+            players: [
+              Player(id: '1', name: 'P1', color: PlayerColor.yellow),
+              Player(id: '2', name: 'P2', color: PlayerColor.green),
+              Player(id: '3', name: 'P3', color: PlayerColor.blue),
+              Player(id: '4', name: 'P4', color: PlayerColor.red),
             ],
-          ),
-        ),
+            createdAt: DateTime.now(),
+            gameMode: GameMode.offline,
+          );
+
+          return GestureDetector(
+            onTap: () => setState(() => _selectedBoardIndex = index),
+            child: Container(
+              width: 90,
+              margin: const EdgeInsets.only(right: 12),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: isSelected ? const Color(0xFFFFC233).withOpacity(0.4) : Colors.black.withOpacity(0.1),
+                    blurRadius: isSelected ? 8 : 4,
+                    offset: const Offset(0, 2),
+                  )
+                ],
+              ),
+              child: Stack(
+                children: [
+                  // Real Board Painter for Preview with Error Handling
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: Container(
+                      color: theme.boardBg,
+                      child: IgnorePointer(
+                        child: CustomPaint(
+                          size: const Size(90, 90),
+                          painter: LudoBoardPainter(
+                            gameState: dummyGameState,
+                            boardSize: 90,
+                            boardIndex: index,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  
+                  // Selection Overlay
+                  if (isSelected)
+                    Container(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: const Color(0xFFFFC233), width: 3),
+                        color: Colors.white.withOpacity(0.1),
+                      ),
+                    ),
+                  
+                  // Board Style Icon Overlay
+                  Positioned(
+                    top: 4,
+                    right: 4,
+                    child: Container(
+                      padding: const EdgeInsets.all(3),
+                      decoration: BoxDecoration(
+                        color: isSelected ? const Color(0xFFFFC233) : Colors.black54,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white, width: 1),
+                      ),
+                      child: Icon(
+                        theme.style == BoardStyle.sketchy ? Icons.brush : Icons.grid_view,
+                        color: Colors.white,
+                        size: 10,
+                      ),
+                    ),
+                  ),
+                  
+                  // Bottom Label
+                  Positioned(
+                    bottom: 0,
+                    left: 0,
+                    right: 0,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: isSelected ? const Color(0xFFFFC233) : Colors.black45,
+                        borderRadius: const BorderRadius.only(
+                          bottomLeft: Radius.circular(12),
+                          bottomRight: Radius.circular(12),
+                        ),
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 2),
+                      child: Text(
+                        theme.style == BoardStyle.sketchy ? 'Sketchy' : 'Modern',
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 9,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
       ),
     );
+  }
+
+  void _showAllHumanNamesEditDialog() {
+    final List<int> humanIndices = [];
+    for (int i = 0; i < _playerSlots.length; i++) {
+      if (_playerSlots[i] == _PlayerSlotType.human) {
+        humanIndices.add(i);
+      }
+    }
+
+    if (humanIndices.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No human players to edit names')),
+      );
+      return;
+    }
+
+    final List<TextEditingController> controllers = humanIndices
+        .map((idx) => TextEditingController(text: _playerNames[idx]))
+        .toList();
+
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          title: const Text('Edit Human Player Names'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: List.generate(humanIndices.length, (i) {
+                final idx = humanIndices[i];
+                final color = _slotColors[idx];
+                final colorName = color.toString().split('.').last;
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: TextField(
+                    controller: controllers[i],
+                    decoration: InputDecoration(
+                      labelText: '${colorName[0].toUpperCase()}${colorName.substring(1)} Player Name',
+                      border: const OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.person, color: _getThemeColor(color)),
+                    ),
+                  ),
+                );
+              }),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                setState(() {
+                  for (int i = 0; i < humanIndices.length; i++) {
+                    final newName = controllers[i].text.trim();
+                    if (newName.isNotEmpty) {
+                      _playerNames[humanIndices[i]] = newName;
+                    }
+                  }
+                });
+                Navigator.pop(ctx);
+              },
+              child: const Text('Save All'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Color _getThemeColor(PlayerColor color) {
+    return switch (color) {
+      PlayerColor.red => const Color(0xFFE24E44),
+      PlayerColor.green => const Color(0xFF86D63B),
+      PlayerColor.yellow => const Color(0xFFFFC233),
+      PlayerColor.blue => const Color(0xFF3B73F2),
+    };
   }
 
   void _showNameEditDialog(int index) {
@@ -662,8 +828,8 @@ class _LudoHomeScreenState extends State<LudoHomeScreen>
             Expanded(
               child: Row(
                 children: [
-                  Expanded(child: Container(color: const Color(0xFF59A95A))), // TL Green
-                  Expanded(child: Container(color: const Color(0xFFF1463A))), // TR Red
+                  Expanded(child: Container(color: const Color(0xFFF0D63D))), // TL Yellow
+                  Expanded(child: Container(color: const Color(0xFF59A95A))), // TR Green
                 ],
               ),
             ),
@@ -671,7 +837,7 @@ class _LudoHomeScreenState extends State<LudoHomeScreen>
               child: Row(
                 children: [
                   Expanded(child: Container(color: const Color(0xFF3B73F2))), // BL Blue
-                  Expanded(child: Container(color: const Color(0xFFF0D63D))), // BR Yellow
+                  Expanded(child: Container(color: const Color(0xFFF1463A))), // BR Red
                 ],
               ),
             ),
