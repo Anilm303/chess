@@ -76,6 +76,8 @@ class LudoBoardPainter extends CustomPainter {
   final bool showSafeCells;
   final int boardIndex;
   final double turnHighlight;
+  final String? movingPlayerId;
+  final int? movingTokenId;
 
   LudoBoardPainter({
     required this.gameState,
@@ -84,6 +86,8 @@ class LudoBoardPainter extends CustomPainter {
     this.showSafeCells = true,
     this.boardIndex = 0,
     this.turnHighlight = 0.0,
+    this.movingPlayerId,
+    this.movingTokenId,
   });
 
   LudoBoardTheme get _theme => LudoBoardTheme.themes[boardIndex % LudoBoardTheme.themes.length];
@@ -147,7 +151,58 @@ class LudoBoardPainter extends CustomPainter {
     _drawHomeBase(canvas, cellSize, 9, 0, PlayerColor.green);  // TR: Green
     _drawHomeBase(canvas, cellSize, 0, 9, PlayerColor.blue);   // BL: Blue
     _drawHomeBase(canvas, cellSize, 9, 9, PlayerColor.red);    // BR: Red
+    
+    _drawHomeLockIcons(canvas, cellSize);
     _drawCenter(canvas, cellSize);
+  }
+
+  void _drawHomeLockIcons(Canvas canvas, double cellSize) {
+    // Only show icons if the rule "Must cut a coin to enter home lane" is ON
+    // We check BOTH the rule and that the player hasn't captured yet
+    if (!gameState.rules.mustCaptureToEnterHome) return;
+
+    void drawLock(Offset pos, bool isLocked) {
+      if (!isLocked) return; 
+      
+      final center = (pos + const Offset(0.5, 0.5)) * cellSize;
+      final radius = cellSize * 0.45;
+      
+      // Draw background circle
+      canvas.drawCircle(center, radius, Paint()..color = Colors.white.withOpacity(0.9));
+      canvas.drawCircle(center, radius, Paint()..color = Colors.black..style = PaintingStyle.stroke..strokeWidth = 1.0);
+      
+      const icon = Icons.lock;
+      final textPainter = TextPainter(
+        text: TextSpan(
+          text: String.fromCharCode(icon.codePoint),
+          style: TextStyle(
+            fontSize: radius * 1.4,
+            fontFamily: icon.fontFamily,
+            package: icon.fontPackage,
+            color: Colors.red,
+          ),
+        ),
+        textDirection: TextDirection.ltr,
+      )..layout();
+      
+      textPainter.paint(canvas, center - Offset(textPainter.width / 2, textPainter.height / 2));
+    }
+
+    for (final player in gameState.players) {
+      // Icon only shows if:
+      // 1. Rule is ON (checked above)
+      // 2. Player has NOT captured (hasCaptured is false)
+      if (player.hasCaptured) continue;
+
+      Offset entryPos;
+      switch (player.color) {
+        case PlayerColor.yellow: entryPos = const Offset(1, 7); break;
+        case PlayerColor.green: entryPos = const Offset(7, 1); break;
+        case PlayerColor.red: entryPos = const Offset(13, 7); break;
+        case PlayerColor.blue: entryPos = const Offset(7, 13); break;
+      }
+      drawLock(entryPos, true);
+    }
   }
 
   void _drawHomeBase(Canvas canvas, double cellSize, int col, int row, PlayerColor pColor) {
@@ -225,11 +280,9 @@ class LudoBoardPainter extends CustomPainter {
       if (_theme.style == BoardStyle.sketchy) {
         _drawSketchyCircle(canvas, center, cellSize * 0.72, Paint()..color = color);
         _drawSketchyCircle(canvas, center, cellSize * 0.48, Paint()..color = Colors.white);
-        _drawSketchyCircle(canvas, center, cellSize * 0.28, Paint()..color = color);
       } else {
         canvas.drawCircle(center, cellSize * 0.72, Paint()..color = color);
         canvas.drawCircle(center, cellSize * 0.48, Paint()..color = Colors.white);
-        canvas.drawCircle(center, cellSize * 0.28, Paint()..color = color);
       }
     }
     
@@ -352,6 +405,8 @@ class LudoBoardPainter extends CustomPainter {
     drawLine(const Offset(7, 6), const Offset(8, 6), _getPlayerColor(PlayerColor.red));
     drawLine(const Offset(9, 7), const Offset(9, 8), _getPlayerColor(PlayerColor.yellow));
     drawLine(const Offset(7, 9), const Offset(8, 9), _getPlayerColor(PlayerColor.blue));
+    
+    _drawHomeLockIcons(canvas, cellSize);
   }
 
   void _drawStarIcon(Canvas canvas, Offset center, double size) {
@@ -444,18 +499,63 @@ class LudoBoardPainter extends CustomPainter {
   }
 
   void _drawTokens(Canvas canvas, double cellSize) {
+    // Group tokens by their position to handle multiple tokens in one cell
+    final Map<int, List<Token>> groupedTokens = {};
     for (final player in gameState.players) {
       for (final token in player.tokens) {
-        final coord = gridCoordinateForToken(token);
-        final pos = Offset((coord.dx + 0.5) * cellSize, (coord.dy + 0.5) * cellSize);
-        final r = cellSize * 0.42;
-        canvas.drawCircle(pos + const Offset(1, 2), r, Paint()..color = Colors.black26..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2));
-        canvas.drawCircle(pos, r, Paint()..color = _getPlayerColor(token.playerColor));
-        canvas.drawCircle(pos, r, Paint()..color = Colors.black87..style = PaintingStyle.stroke..strokeWidth = 1.2);
-        canvas.drawCircle(pos, r * 0.7, Paint()..color = Colors.white..style = PaintingStyle.stroke..strokeWidth = 2);
-        canvas.drawCircle(pos, r * 0.35, Paint()..color = _getPlayerColor(token.playerColor));
+        if (player.id == movingPlayerId && token.id == movingTokenId) continue;
+        if (token.position == -1) {
+          // Home base tokens are drawn separately in _drawHomeBase logic 
+          // or we can handle them here by using a unique key for each base.
+          // For now, let's only group tokens that are on the board (pos >= 0).
+          final coord = gridCoordinateForToken(token);
+          _drawToken(canvas, cellSize, token, coord);
+          continue;
+        }
+        groupedTokens.putIfAbsent(token.position, () => []).add(token);
       }
     }
+
+    // Draw grouped tokens
+    groupedTokens.forEach((position, tokens) {
+      final baseCoord = gridCoordinateForToken(tokens.first);
+      
+      if (tokens.length == 1) {
+        _drawToken(canvas, cellSize, tokens.first, baseCoord);
+      } else {
+        // Multiple tokens in one cell (like stars or safe zones)
+        // Spread them out slightly so all are visible
+        for (int i = 0; i < tokens.length; i++) {
+          final double angle = (2 * pi * i) / tokens.length;
+          final double offsetDist = cellSize * 0.22;
+          final offset = Offset(cos(angle) * offsetDist, sin(angle) * offsetDist);
+          
+          final pos = Offset(
+            (baseCoord.dx + 0.5) * cellSize + offset.dx,
+            (baseCoord.dy + 0.5) * cellSize + offset.dy,
+          );
+          
+          // Draw smaller tokens when grouped
+          _drawSingleToken(canvas, cellSize * 0.75, tokens[i], pos);
+        }
+      }
+    });
+  }
+
+  void _drawToken(Canvas canvas, double cellSize, Token token, Offset gridCoord) {
+    final pos = Offset((gridCoord.dx + 0.5) * cellSize, (gridCoord.dy + 0.5) * cellSize);
+    _drawSingleToken(canvas, cellSize, token, pos);
+  }
+
+  void _drawSingleToken(Canvas canvas, double cellSize, Token token, Offset pos) {
+    final r = cellSize * 0.42;
+    canvas.drawCircle(pos + const Offset(1, 2), r, Paint()..color = Colors.black26..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2));
+    canvas.drawCircle(pos, r, Paint()..color = _getPlayerColor(token.playerColor));
+    canvas.drawCircle(pos, r, Paint()..color = Colors.black87..style = PaintingStyle.stroke..strokeWidth = 1.2);
+    canvas.drawCircle(pos, r * 0.7, Paint()..color = Colors.white..style = PaintingStyle.stroke..strokeWidth = 2);
+    canvas.drawCircle(pos, r * 0.35, Paint()..color = _getPlayerColor(token.playerColor));
+    
+    // Numbers removed as per user request for a cleaner look
   }
 
   @override bool shouldRepaint(LudoBoardPainter old) => true;

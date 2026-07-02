@@ -40,6 +40,8 @@ class _LudoGameScreenState extends State<LudoGameScreen>
   late AnimationController _spawnAnimationController;
   late AnimationController _extraTurnController;
   late AnimationController _turnBlinkController;
+  late AnimationController _stepAnimationController;
+  late AnimationController _celebrationController;
   late GameProvider gameProvider;
   bool _undoDialogVisible = false;
   bool _debugOverlay = false;
@@ -53,6 +55,13 @@ class _LudoGameScreenState extends State<LudoGameScreen>
   int _initialDiceValue = 1;
   bool _isAutoRollingDice = false;
   bool _isAutoMovingToken = false;
+
+  // Animation states for step-by-step movement
+  List<int> _activeMovePath = [];
+  int? _animatingTokenId;
+  String? _animatingPlayerId;
+  PlayerColor? _animatingColor;
+  int _lastStepSoundIndex = -1;
 
   @override
   void initState() {
@@ -135,6 +144,24 @@ class _LudoGameScreenState extends State<LudoGameScreen>
       }
     });
 
+    _stepAnimationController = AnimationController(
+      vsync: this,
+    );
+    _celebrationController = AnimationController(
+      duration: const Duration(seconds: 2),
+      vsync: this,
+    );
+    _stepAnimationController.addListener(() {
+      if (_activeMovePath.isEmpty) return;
+      final double pathProgress = _stepAnimationController.value * _activeMovePath.length;
+      final int currentIndex = pathProgress.floor().clamp(0, _activeMovePath.length - 1);
+      
+      if (currentIndex != _lastStepSoundIndex) {
+        _lastStepSoundIndex = currentIndex;
+        context.read<SoundService>().playSound(GameSound.tokenMove);
+      }
+    });
+
     _turnBlinkController = AnimationController(
       duration: const Duration(milliseconds: 1000),
       vsync: this,
@@ -160,6 +187,8 @@ class _LudoGameScreenState extends State<LudoGameScreen>
   void dispose() {
     _diceAnimationController.dispose();
     _tokenAnimationController.dispose();
+    _stepAnimationController.dispose();
+    _celebrationController.dispose();
     try {
       gameProvider.removeListener(_onGameProviderChanged);
     } catch (e) {
@@ -178,6 +207,36 @@ class _LudoGameScreenState extends State<LudoGameScreen>
       _initialDiceValue = gs.diceValue;
     }
     final lm = prov.lastMoveEvent;
+
+    // Handle step-by-step move event
+    if (lm != null && lm['movePath'] != null) {
+      try {
+        final mp = lm['movePath'] as Map<String, dynamic>;
+        setState(() {
+          _activeMovePath = List<int>.from(mp['path']);
+          _animatingTokenId = mp['tokenId'];
+          _animatingPlayerId = mp['playerId'];
+          _animatingColor = mp['color'];
+          _lastStepSoundIndex = -1;
+        });
+        
+        _stepAnimationController.duration = Duration(milliseconds: _activeMovePath.length * 300);
+        _stepAnimationController.forward(from: 0);
+      } catch (e) {}
+    } else if (lm != null && lm['reachedHome'] != null) {
+      // Trigger Home Celebration Animation
+      _celebrationController.forward(from: 0);
+      context.read<SoundService>().playSound(GameSound.playerWin);
+    } else {
+      // Clear path if no move event
+      if (_activeMovePath.isNotEmpty) {
+        setState(() {
+          _activeMovePath = [];
+          _animatingTokenId = null;
+          _animatingPlayerId = null;
+        });
+      }
+    }
 
     // Play dice animation when server rolled dice
     if (lm != null && lm['diceRoll'] != null) {
@@ -312,7 +371,7 @@ class _LudoGameScreenState extends State<LudoGameScreen>
         if (uniquePositions.length == 1) {
           _isAutoMovingToken = true;
           // Wait 900ms to let the dice animation finish
-          Future.delayed(const Duration(milliseconds: 900), () {
+          Future.delayed(const Duration(milliseconds: 900), () async {
             if (mounted) {
               final currentProv = context.read<GameProvider>();
               final currentState = currentProv.gameState;
@@ -324,7 +383,7 @@ class _LudoGameScreenState extends State<LudoGameScreen>
                 
                 final currentMovable = currentProv.getMovableTokens();
                 if (currentMovable.isNotEmpty) {
-                  currentProv.moveToken(currentMovable.first);
+                  await currentProv.moveToken(currentMovable.first);
                   context.read<SoundService>().playSound(GameSound.tokenMove);
                 }
               }
@@ -339,100 +398,65 @@ class _LudoGameScreenState extends State<LudoGameScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Consumer<GameProvider>(
-        builder: (context, gameProvider, _) {
-          if (gameProvider.pendingUndoRequest != null && !_undoDialogVisible) {
-            WidgetsBinding.instance.addPostFrameCallback((_) async {
-              _undoDialogVisible = true;
-              final pending = gameProvider.pendingUndoRequest as Map<String, dynamic>;
-              await showModalBottomSheet(
-                context: context,
-                isDismissible: false,
-                builder: (ctx) {
-                  final requester = pending['playerId'] ?? 'Someone';
-                  final votes = pending['votes'] as Map<String, dynamic>?;
-                  final acceptCount = votes != null ? (votes['accept'] ?? 0) : 0;
-                  final rejectCount = votes != null ? (votes['reject'] ?? 0) : 0;
-
-                  return Container(
-                    padding: const EdgeInsets.all(12),
-                    height: 220,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('Undo requested by $requester'),
-                        const SizedBox(height: 8),
-                        Text('Accept: $acceptCount  Reject: $rejectCount'),
-                        const Spacer(),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.end,
-                          children: [
-                            ElevatedButton(
-                              onPressed: () {
-                                Navigator.pop(ctx);
-                              },
-                              child: const Text('Close'),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  );
-                },
-              );
-              _undoDialogVisible = false;
-            });
-          }
-
-          if (gameProvider.gameState == null) {
-            return const Center(child: CircularProgressIndicator());
-          }
-
-          final currentColor = gameProvider.currentPlayer?.color;
-          List<Color> bgColors;
-          switch (currentColor) {
-            case PlayerColor.red:
-              bgColors = [const Color(0xFFFFEBEB), const Color(0xFFFFCDD2), const Color(0xFFFFEBEB)];
-              break;
-            case PlayerColor.green:
-              bgColors = [const Color(0xFFE8F5E9), const Color(0xFFC8E6C9), const Color(0xFFE8F5E9)];
-              break;
-            case PlayerColor.yellow:
-              bgColors = [const Color(0xFFFFFDE7), const Color(0xFFFFF59D), const Color(0xFFFFFDE7)];
-              break;
-            case PlayerColor.blue:
-              bgColors = [const Color(0xFFE3F2FD), const Color(0xFFBBDEFB), const Color(0xFFE3F2FD)];
-              break;
-            default:
-              bgColors = [const Color(0xFFE5C599), const Color(0xFFC9A676), const Color(0xFFE5C599)];
-          }
-
-          return AnimatedContainer(
-            duration: const Duration(milliseconds: 600),
-            curve: Curves.easeInOut,
-            decoration: BoxDecoration(
-              // Tinted background based on current player
-              gradient: LinearGradient(
-                colors: bgColors,
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                stops: const [0.0, 0.5, 1.0],
-              ),
-            ),
-            child: SafeArea(
-              child: gameProvider.hasGameEnded
-                  ? _buildGameOverScreen(gameProvider)
-                  : Stack(
-                      children: [
-                        _buildGameScreen(gameProvider),
-                        if (_debugOverlay) _buildDebugOverlay(gameProvider),
-                      ],
-                    ),
-            ),
-          );
+      body: PopScope(
+        canPop: false,
+        onPopInvokedWithResult: (didPop, result) {
+          if (didPop) return;
+          context.read<GameProvider>().saveCurrentOfflineGame();
+          Navigator.pop(context);
         },
+        child: Consumer<GameProvider>(
+          builder: (context, prov, _) {
+            this.gameProvider = prov;
+
+            if (prov.gameState == null) {
+              return const Center(child: CircularProgressIndicator());
+            }
+
+            final currentColor = prov.currentPlayer?.color;
+            final List<Color> bgColors = _getActualBgColors(currentColor);
+
+            return AnimatedContainer(
+              duration: const Duration(milliseconds: 600),
+              curve: Curves.easeInOut,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: bgColors,
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  stops: const [0.0, 0.5, 1.0],
+                ),
+              ),
+              child: SafeArea(
+                child: prov.hasGameEnded
+                    ? _buildGameOverScreen(prov)
+                    : Stack(
+                        children: [
+                          _buildGameScreen(prov),
+                          if (_debugOverlay) _buildDebugOverlay(prov),
+                        ],
+                      ),
+              ),
+            );
+          },
+        ),
       ),
     );
+  }
+
+  List<Color> _getActualBgColors(PlayerColor? color) {
+    switch (color) {
+      case PlayerColor.red:
+        return [const Color(0xFFFFEBEB), const Color(0xFFFFCDD2), const Color(0xFFFFEBEB)];
+      case PlayerColor.green:
+        return [const Color(0xFFE8F5E9), const Color(0xFFC8E6C9), const Color(0xFFE8F5E9)];
+      case PlayerColor.yellow:
+        return [const Color(0xFFFFFDE7), const Color(0xFFFFF59D), const Color(0xFFFFFDE7)];
+      case PlayerColor.blue:
+        return [const Color(0xFFE3F2FD), const Color(0xFFBBDEFB), const Color(0xFFE3F2FD)];
+      default:
+        return [const Color(0xFFE5C599), const Color(0xFFC9A676), const Color(0xFFE5C599)];
+    }
   }
 
   Widget _buildDebugOverlay(GameProvider gameProvider) {
@@ -500,9 +524,19 @@ class _LudoGameScreenState extends State<LudoGameScreen>
   }
 
   Widget _buildGameScreen(GameProvider gameProvider) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final screenHeight = MediaQuery.of(context).size.height;
+    
+    // Calculate a responsive board size that fits both width and height
+    // We leave some space (30%) for controls and headers
+    double boardSize = min(screenWidth, screenHeight * 0.75);
+    
+    // Cap the size for large screens (Chrome/Desktop)
+    if (boardSize > 600) boardSize = 600;
+
     if (_diceLeft == null || _diceTop == null) {
-      _diceLeft = (MediaQuery.of(context).size.width - 60) / 2;
-      _diceTop = (MediaQuery.of(context).size.width - 60) / 2;
+      _diceLeft = (boardSize - 60) / 2;
+      _diceTop = (boardSize - 60) / 2;
     }
 
     return Column(
@@ -516,7 +550,7 @@ class _LudoGameScreenState extends State<LudoGameScreen>
               borderRadius: BorderRadius.circular(16),
             ),
             child: Text(
-              'Mode: ${_diceRollMode.toString().split('.').last.toUpperCase()} | Pos: (${_diceLeft?.toStringAsFixed(1)}, ${_diceTop?.toStringAsFixed(1)})',
+              'Mode: ${_diceRollMode.toString().split('.').last.toUpperCase()}',
               style: const TextStyle(
                 fontSize: 15,
                 fontWeight: FontWeight.bold,
@@ -529,8 +563,8 @@ class _LudoGameScreenState extends State<LudoGameScreen>
         // Game board
         Center(
           child: SizedBox(
-            width: MediaQuery.of(context).size.width,
-            height: MediaQuery.of(context).size.width,
+            width: boardSize,
+            height: boardSize,
             child: Stack(
               clipBehavior: Clip.none,
               children: [
@@ -541,14 +575,32 @@ class _LudoGameScreenState extends State<LudoGameScreen>
                     return CustomPaint(
                       painter: LudoBoardPainter(
                         gameState: gameProvider.gameState!,
-                        boardSize: MediaQuery.of(context).size.width,
+                        boardSize: boardSize,
                         lastMove: gameProvider.lastMoveEvent,
                         showSafeCells:
                             gameProvider.gameState?.rules.showSafeCells ?? true,
                         boardIndex: widget.boardIndex,
                         turnHighlight: _turnBlinkController.value,
+                        movingPlayerId: _animatingPlayerId,
+                        movingTokenId: _animatingTokenId,
                       ),
-                      size: Size(MediaQuery.of(context).size.width, MediaQuery.of(context).size.width),
+                      size: Size(boardSize, boardSize),
+                    );
+                  },
+                ),
+                // Step-by-step movement animation layer
+                AnimatedBuilder(
+                  animation: _stepAnimationController,
+                  builder: (context, child) {
+                    return CustomPaint(
+                      painter: StepMoveAnimationPainter(
+                        progress: _stepAnimationController.value,
+                        path: _activeMovePath,
+                        tokenId: _animatingTokenId,
+                        color: _animatingColor,
+                        gameState: gameProvider.gameState!,
+                      ),
+                      size: Size(boardSize, boardSize),
                     );
                   },
                 ),
@@ -562,7 +614,7 @@ class _LudoGameScreenState extends State<LudoGameScreen>
                         killedTokens: _activeKilledTokens,
                         gameState: gameProvider.gameState!,
                       ),
-                      size: Size(MediaQuery.of(context).size.width, MediaQuery.of(context).size.width),
+                      size: Size(boardSize, boardSize),
                     );
                   },
                 ),
@@ -576,7 +628,7 @@ class _LudoGameScreenState extends State<LudoGameScreen>
                         spawnedTokens: _activeSpawnedTokens,
                         gameState: gameProvider.gameState!,
                       ),
-                      size: Size(MediaQuery.of(context).size.width, MediaQuery.of(context).size.width),
+                      size: Size(boardSize, boardSize),
                     );
                   },
                 ),
@@ -584,18 +636,36 @@ class _LudoGameScreenState extends State<LudoGameScreen>
                 Positioned.fill(
                   child: GestureDetector(
                     behavior: HitTestBehavior.translucent,
-                    onTapUp: (details) => _onBoardTap(details, gameProvider),
+                    onTapUp: (details) => _onBoardTap(details, gameProvider, boardSize),
                   ),
                 ),
                 // Dice on top - gets gesture priority
                 Positioned(
                   left: _diceRollMode == DiceRollMode.tap 
-                      ? (MediaQuery.of(context).size.width - 60) / 2 
+                      ? (boardSize - 60) / 2 
                       : _diceLeft,
                   top: _diceRollMode == DiceRollMode.tap 
-                      ? (MediaQuery.of(context).size.width - 60) / 2 
+                      ? (boardSize - 60) / 2 
                       : _diceTop,
-                  child: _buildCenterDice(gameProvider),
+                  child: _buildCenterDice(gameProvider, boardSize),
+                ),
+                // Celebration Overlay
+                IgnorePointer(
+                  child: AnimatedBuilder(
+                    animation: _celebrationController,
+                    builder: (context, child) {
+                      if (_celebrationController.value == 0) return const SizedBox.shrink();
+                      return CustomPaint(
+                        painter: CelebrationPainter(
+                          progress: _celebrationController.value,
+                          color: _animatingColor == null 
+                              ? Colors.yellow 
+                              : _getActualColorFromPlayerColor(_animatingColor!),
+                        ),
+                        size: Size(boardSize, boardSize),
+                      );
+                    },
+                  ),
                 ),
               ],
             ),
@@ -607,6 +677,15 @@ class _LudoGameScreenState extends State<LudoGameScreen>
         const SizedBox(height: 20),
       ],
     );
+  }
+
+  Color _getActualColorFromPlayerColor(PlayerColor color) {
+    switch (color) {
+      case PlayerColor.red: return Colors.red;
+      case PlayerColor.green: return Colors.green;
+      case PlayerColor.yellow: return Colors.yellow[700]!;
+      case PlayerColor.blue: return Colors.blue;
+    }
   }
 
   bool _shouldShowDot(int value, int row, int col) {
@@ -663,7 +742,7 @@ class _LudoGameScreenState extends State<LudoGameScreen>
     );
   }
 
-  Widget _buildCenterDice(GameProvider gameProvider) {
+  Widget _buildCenterDice(GameProvider gameProvider, double boardSize) {
     final canRoll = gameProvider.currentPlayer?.type == PlayerType.human &&
         !gameProvider.diceRolled &&
         !gameProvider.awaitingServer;
@@ -710,7 +789,6 @@ class _LudoGameScreenState extends State<LudoGameScreen>
           ? (details) {
               _flingVelocity = Offset.zero;
               _lastAnimationValue = 0.0;
-              final boardSize = MediaQuery.of(context).size.width;
               setState(() {
                 _diceLeft = (_diceLeft ?? 0) + details.delta.dx;
                 _diceTop = (_diceTop ?? 0) + details.delta.dy;
@@ -763,7 +841,10 @@ class _LudoGameScreenState extends State<LudoGameScreen>
           // Back Button
           _buildCircleButton(
             icon: Icons.arrow_back,
-            onPressed: () => Navigator.pop(context),
+            onPressed: () {
+              gameProvider.saveCurrentOfflineGame();
+              Navigator.pop(context);
+            },
           ),
           // Right side buttons
           Row(
@@ -798,13 +879,12 @@ class _LudoGameScreenState extends State<LudoGameScreen>
     );
   }
 
-  void _onBoardTap(TapUpDetails details, GameProvider gameProvider) {
+  void _onBoardTap(TapUpDetails details, GameProvider gameProvider, double boardSize) {
     if (!gameProvider.canMove ||
         gameProvider.currentPlayer?.type != PlayerType.human) {
       return;
     }
 
-    final boardSize = MediaQuery.of(context).size.width;
     final cellSize = boardSize / 15;
     final localPosition = details.localPosition;
 
@@ -818,8 +898,11 @@ class _LudoGameScreenState extends State<LudoGameScreen>
 
       final distance = (Offset(cx, cy) - localPosition).distance;
       if (distance <= cellSize * 1.2) {
-        gameProvider.moveToken(token);
-        context.read<SoundService>().playSound(GameSound.tokenMove);
+        // Wrap in anonymous async function to allow await
+        () async {
+          await gameProvider.moveToken(token);
+          if (mounted) context.read<SoundService>().playSound(GameSound.tokenMove);
+        }();
         break;
       }
     }
@@ -832,13 +915,16 @@ class _LudoGameScreenState extends State<LudoGameScreen>
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
+      isScrollControlled: true,
       builder: (ctx) {
         return StatefulBuilder(
           builder: (context, setModalState) {
+            final players = gameProvider.gameState?.players ?? [];
+            
             return Container(
               padding: const EdgeInsets.all(24),
-              height: 220,
               child: Column(
+                mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text(
@@ -849,7 +935,9 @@ class _LudoGameScreenState extends State<LudoGameScreen>
                       color: Colors.brown,
                     ),
                   ),
-                  const SizedBox(height: 30),
+                  const SizedBox(height: 20),
+                  
+                  // Dice Setting
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -890,12 +978,87 @@ class _LudoGameScreenState extends State<LudoGameScreen>
                       ),
                     ],
                   ),
+                  
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 16),
+                    child: Divider(color: Colors.brown, thickness: 0.5),
+                  ),
+                  
+                  // Player Management Section
+                  const Text(
+                    'Manage Players',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.brown),
+                  ),
+                  const SizedBox(height: 12),
+                  ...players.map((player) {
+                    final isCurrent = gameProvider.gameState?.currentPlayer.id == player.id;
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: Row(
+                        children: [
+                          CircleAvatar(
+                            radius: 12,
+                            backgroundColor: _getActualColorFromPlayerColor(player.color),
+                            child: isCurrent ? const Icon(Icons.star, size: 12, color: Colors.white) : null,
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              player.name,
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: isCurrent ? FontWeight.bold : FontWeight.normal,
+                              ),
+                            ),
+                          ),
+                          if (players.length > 2)
+                            IconButton(
+                              icon: const Icon(Icons.person_remove, color: Colors.red),
+                              tooltip: 'Remove player',
+                              onPressed: () {
+                                _showConfirmRemoveDialog(player, setModalState);
+                              },
+                            ),
+                        ],
+                      ),
+                    );
+                  }).toList(),
+                  const SizedBox(height: 16),
                 ],
               ),
             );
           },
         );
       },
+    );
+  }
+
+  void _showConfirmRemoveDialog(Player player, StateSetter setModalState) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Remove Player?'),
+        content: Text('Are you sure you want to remove ${player.name} from the game?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
+            onPressed: () {
+              gameProvider.removePlayer(player.id);
+              Navigator.pop(ctx);
+              setModalState(() {}); // Rebuild sheet to update list
+              if (gameProvider.gameState!.players.length <= 1) {
+                // If only 1 player left, game ends
+                Navigator.pop(context);
+              }
+            },
+            child: const Text('Remove'),
+          ),
+        ],
+      ),
     );
   }
 
@@ -988,6 +1151,7 @@ class _LudoGameScreenState extends State<LudoGameScreen>
           const SizedBox(height: 16),
           ElevatedButton(
             onPressed: () {
+              gameProvider.resetGame();
               Navigator.pop(context);
             },
             style: ElevatedButton.styleFrom(
@@ -1224,4 +1388,140 @@ class SpawnAnimationPainter extends CustomPainter {
     return oldDelegate.progress != progress ||
         oldDelegate.spawnedTokens != spawnedTokens;
   }
+}
+
+// Painter for step-by-step token movement
+class StepMoveAnimationPainter extends CustomPainter {
+  final double progress; // 0.0 -> 1.0
+  final List<int> path;
+  final int? tokenId;
+  final PlayerColor? color;
+  final GameState gameState;
+
+  StepMoveAnimationPainter({
+    required this.progress,
+    required this.path,
+    this.tokenId,
+    this.color,
+    required this.gameState,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (path.isEmpty || tokenId == null || color == null) return;
+    
+    final double actualSize = min(size.width, size.height);
+    final double cellSize = actualSize / 15;
+    final boardOffset = Offset(
+      (size.width - actualSize) / 2,
+      (size.height - actualSize) / 2,
+    );
+
+    // Calculate current position along the path
+    final double pathProgress = progress * path.length;
+    final int currentIndex = pathProgress.floor().clamp(0, path.length - 1);
+    final double stepProgress = pathProgress - currentIndex;
+
+    final int currentPos = path[currentIndex];
+    final int nextPos = currentIndex < path.length - 1 ? path[currentIndex + 1] : currentPos;
+
+    final currentToken = Token(id: tokenId!, playerColor: color!, position: currentPos);
+    final nextToken = Token(id: tokenId!, playerColor: color!, position: nextPos);
+
+    final currentCoord = LudoBoardPainter.gridCoordinateForToken(currentToken);
+    final nextCoord = LudoBoardPainter.gridCoordinateForToken(nextToken);
+
+    final currentPx = Offset(
+      (currentCoord.dx + 0.5) * cellSize,
+      (currentCoord.dy + 0.5) * cellSize,
+    ) + boardOffset;
+    
+    final nextPx = Offset(
+      (nextCoord.dx + 0.5) * cellSize,
+      (nextCoord.dy + 0.5) * cellSize,
+    ) + boardOffset;
+
+    final currentPosPx = Offset.lerp(currentPx, nextPx, stepProgress)!;
+
+    // Draw the token at the interpolated position
+    final paint = Paint()..color = _colorFor(color!);
+    final radius = cellSize * 0.35;
+    
+    // Shadow
+    canvas.drawCircle(
+      currentPosPx + const Offset(2, 4),
+      radius * 1.1,
+      Paint()..color = Colors.black.withAlpha(80)..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3),
+    );
+    
+    canvas.drawCircle(currentPosPx, radius, paint);
+    canvas.drawCircle(
+      currentPosPx,
+      radius,
+      Paint()
+        ..color = Colors.white
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2,
+    );
+    
+    // Token Number removed for consistency
+  }
+
+  Color _colorFor(PlayerColor c) {
+    switch (c) {
+      case PlayerColor.red: return Colors.red;
+      case PlayerColor.green: return Colors.green;
+      case PlayerColor.yellow: return Colors.yellow[700]!;
+      case PlayerColor.blue: return Colors.blue;
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant StepMoveAnimationPainter oldDelegate) {
+    return oldDelegate.progress != progress || oldDelegate.path != path;
+  }
+}
+
+// Celebration Painter for Home Entry
+class CelebrationPainter extends CustomPainter {
+  final double progress;
+  final Color color;
+
+  CelebrationPainter({required this.progress, required this.color});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (progress <= 0 || progress >= 1.0) return;
+
+    final center = Offset(size.width / 2, size.height / 2);
+    final random = Random(42);
+    final paint = Paint()..style = PaintingStyle.fill;
+
+    for (int i = 0; i < 50; i++) {
+      final angle = random.nextDouble() * 2 * pi;
+      final distance = progress * (size.width / 2) * (0.5 + random.nextDouble() * 0.5);
+      final particlePos = center + Offset(cos(angle) * distance, sin(angle) * distance);
+      
+      final particleSize = 4.0 + random.nextDouble() * 8.0;
+      final opacity = (1.0 - progress).clamp(0.0, 1.0);
+      
+      paint.color = color.withOpacity(opacity);
+      
+      if (i % 3 == 0) {
+        canvas.drawCircle(particlePos, particleSize / 2, paint);
+      } else if (i % 3 == 1) {
+        canvas.drawRect(Rect.fromLTWH(particlePos.dx, particlePos.dy, particleSize, particleSize), paint);
+      } else {
+        final path = Path();
+        path.moveTo(particlePos.dx, particlePos.dy - particleSize);
+        path.lineTo(particlePos.dx + particleSize, particlePos.dy + particleSize);
+        path.lineTo(particlePos.dx - particleSize, particlePos.dy + particleSize);
+        path.close();
+        canvas.drawPath(path, paint);
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CelebrationPainter oldDelegate) => true;
 }

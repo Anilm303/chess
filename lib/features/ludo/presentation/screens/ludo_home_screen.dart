@@ -329,6 +329,13 @@ class _LudoHomeScreenState extends State<LudoHomeScreen>
                 const SizedBox(height: 8),
                 _buildStartCoinsRow(),
                 _buildRuleRow(
+                  '1 also gives another turn',
+                  _rules.extraTurnOnOne,
+                  onTap: () => _setRules(
+                    _rules.copyWith(extraTurnOnOne: !_rules.extraTurnOnOne),
+                  ),
+                ),
+                _buildRuleRow(
                   '6 also gives another turn',
                   _rules.extraTurnOnSix,
                   onTap: () => _setRules(
@@ -443,7 +450,7 @@ class _LudoHomeScreenState extends State<LudoHomeScreen>
           final isSelected = _selectedBoardIndex == index;
           final theme = LudoBoardTheme.themes[index];
           
-          // Create a dummy game state for the painter to show base UI
+          // Create a dummy game state for the painter to show base UI with current rules
           final dummyGameState = GameState(
             id: 'preview',
             players: [
@@ -454,6 +461,7 @@ class _LudoHomeScreenState extends State<LudoHomeScreen>
             ],
             createdAt: DateTime.now(),
             gameMode: GameMode.offline,
+            rules: _rules,
           );
 
           return GestureDetector(
@@ -1138,24 +1146,54 @@ class _LudoHomeScreenState extends State<LudoHomeScreen>
   }
 
   Widget _buildPrimaryActions(BuildContext context) {
+    final prov = context.watch<GameProvider>();
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: Row(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Expanded(
-            child: _classicActionButton(
-              'Exit',
-              const Color(0xFFE24E44),
-              () => Navigator.maybePop(context),
+          if (prov.hasSavedOfflineGame) ...[
+            _classicActionButton(
+              'Resume Game',
+              const Color(0xFF2196F3),
+              () {
+                prov.resumeOfflineGame(newRules: _rules);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => LudoGameScreen(
+                      players: prov.gameState!.players,
+                      gameMode: prov.gameState!.gameMode,
+                      ruleSettings: prov.gameState!.rules,
+                      boardIndex: _selectedBoardIndex,
+                      continuousRolling: _continuousRolling,
+                      initialDiceFling: _diceRollingFling,
+                      moveSpeed: _moveSpeed,
+                    ),
+                  ),
+                );
+              },
             ),
-          ),
-          const SizedBox(width: 30),
-          Expanded(
-            child: _classicActionButton(
-              'Play',
-              const Color(0xFF86D63B),
-              () => _startSelectedGame(context),
-            ),
+            const SizedBox(height: 12),
+          ],
+          Row(
+            children: [
+              Expanded(
+                child: _classicActionButton(
+                  'Exit',
+                  const Color(0xFFE24E44),
+                  () => Navigator.maybePop(context),
+                ),
+              ),
+              const SizedBox(width: 30),
+              Expanded(
+                child: _classicActionButton(
+                  'Play',
+                  const Color(0xFF86D63B),
+                  () => _startSelectedGame(context),
+                ),
+              ),
+            ],
           ),
         ],
       ),

@@ -31,6 +31,48 @@ class GameProvider extends ChangeNotifier {
   bool get canMove => gameState?.canMove ?? false;
   DateTime? _lastRollRequestAt;
 
+  /// Saved game state for resume feature
+  GameState? _savedOfflineState;
+
+  bool get hasSavedOfflineGame => _savedOfflineState != null;
+
+  void saveCurrentOfflineGame() {
+    if (_gameController != null && gameState != null && gameState!.gameMode == GameMode.offline) {
+      _savedOfflineState = gameState!.copy();
+    }
+  }
+
+  void resumeOfflineGame({LudoRuleSettings? newRules}) {
+    if (_savedOfflineState != null) {
+      if (newRules != null) {
+        _savedOfflineState!.rules = newRules;
+      }
+      _gameController = GameController();
+      _gameController!.gameState = _savedOfflineState!;
+      _savedOfflineState = null;
+      
+      _gameController!.onGameStateChanged = () {
+        notifyListeners();
+        try {
+          _scheduleAutoPlayIfNeeded(_gameController?.gameState.currentPlayer);
+        } catch (e) {}
+      };
+      _gameController!.onTurnChanged = (player) {
+        notifyListeners();
+        try {
+          final p = player as Player? ?? _gameController!.gameState.currentPlayer;
+          _scheduleAutoPlayIfNeeded(p);
+        } catch (e) {}
+      };
+      _gameController!.onTokenMoved = (_) => notifyListeners();
+      _gameController!.onGameEnded = (_) => notifyListeners();
+      
+      notifyListeners();
+      // Ensure AI continues if it was its turn
+      _scheduleAutoPlayIfNeeded(gameState!.currentPlayer);
+    }
+  }
+
   /// Initialize offline game
   void initializeOfflineGame({
     required List<Player> players,
@@ -160,6 +202,24 @@ class GameProvider extends ChangeNotifier {
 
     final diceValue = _gameController?.rollDice() ?? 0;
 
+    if (diceValue > 0) {
+      // Capture dice roll for UI animation (even in local mode)
+      lastMoveEvent = {
+        'diceRoll': {
+          'playerId': gameState!.currentPlayer.id,
+          'diceValue': diceValue,
+        },
+      };
+      
+      // Auto-clear after animation duration
+      Future.delayed(const Duration(milliseconds: 1400), () {
+        if (lastMoveEvent != null && lastMoveEvent!['diceRoll'] != null) {
+          lastMoveEvent = null;
+          notifyListeners();
+        }
+      });
+    }
+
     if (_socketService == null &&
         _gameController != null &&
         gameState != null &&
@@ -189,7 +249,7 @@ class GameProvider extends ChangeNotifier {
   }
 
   /// Move token
-  bool moveToken(Token token) {
+  Future<bool> moveToken(Token token) async {
     if (_gameController == null) return false;
 
     // If connected to server, send authoritative move request instead of applying locally
@@ -230,10 +290,62 @@ class GameProvider extends ChangeNotifier {
       return true;
     }
 
-    // Offline/local mode: apply move locally
+    // Offline/local mode: perform step-by-step animation before applying final logic
+    if (gameState != null && !gameState!.canMove) return false;
+    
+    // Prevent interaction during animation
+    gameState!.canMove = false;
+    notifyListeners();
+    
+    final int dice = gameState!.diceValue;
+    final List<int> path = LudoGameLogic.calculateMovePath(
+      token,
+      dice,
+      token.playerColor,
+      rules: gameState!.rules,
+      hasCaptured: gameState!.currentPlayer.hasCaptured,
+    );
+
+    if (path.isNotEmpty) {
+      // Signal UI to start step-by-step animation
+      lastMoveEvent = {
+        'movePath': {
+          'playerId': gameState!.currentPlayer.id,
+          'tokenId': token.id,
+          'path': path,
+          'from': token.position,
+          'color': token.playerColor,
+        }
+      };
+      
+      notifyListeners();
+      
+      final int animationDurationMs = path.length * 300 + 400;
+      await Future.delayed(Duration(milliseconds: animationDurationMs));
+      
+      // Check if token reached the final home cell (57)
+      if (path.last == 57) {
+        lastMoveEvent = {
+          'reachedHome': {
+            'playerId': gameState!.currentPlayer.id,
+            'tokenId': token.id,
+            'color': token.playerColor,
+          }
+        };
+        notifyListeners();
+        // Keep celebration visible for a moment
+        await Future.delayed(const Duration(milliseconds: 2000));
+      }
+
+      // Clear event
+      if (lastMoveEvent != null && (lastMoveEvent!['movePath'] != null || lastMoveEvent!['reachedHome'] != null)) {
+        lastMoveEvent = null;
+      }
+    }
+
     final result = _gameController!.moveToken(
       token,
-      _gameController!.gameState.diceValue,
+      dice,
     );
 
     notifyListeners();
@@ -278,7 +390,7 @@ class GameProvider extends ChangeNotifier {
           }
 
           rollDice();
-          await Future.delayed(const Duration(milliseconds: 450));
+          await Future.delayed(const Duration(milliseconds: 1500)); // Wait for dice roll animation
           if (!isGamePlaying ||
               gameState == null ||
               gameState!.currentPlayer.id != aiTurnPlayerId) {
@@ -311,7 +423,7 @@ class GameProvider extends ChangeNotifier {
         final tokenToMove = selectedToken ?? movableTokens.first;
 
         await Future.delayed(const Duration(milliseconds: 450));
-        final moved = moveToken(tokenToMove);
+        final moved = await moveToken(tokenToMove);
 
         // Defensive recovery: never stay stuck on an unresolved AI roll.
         if (!moved &&
@@ -360,7 +472,16 @@ class GameProvider extends ChangeNotifier {
   /// Reset game
   void resetGame() {
     _gameController?.resetGame();
+    _savedOfflineState = null; // Clear saved state
     notifyListeners();
+  }
+
+  /// Remove player from game
+  void removePlayer(String playerId) {
+    if (_gameController != null) {
+      _gameController!.removePlayer(playerId);
+      notifyListeners();
+    }
   }
 
   /// Connect to online server

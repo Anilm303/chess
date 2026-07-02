@@ -15,11 +15,11 @@ class LudoGameLogic {
   static int get homePathSize => BoardConfig.homePositions; // 6
 
   static bool canOpenTokenOnDice(int diceValue, LudoRuleSettings rules) {
-    if (isBonusDice(diceValue, rules)) return rules.openTokenOnSix;
-    if (isPenaltyDice(diceValue, rules)) return rules.openTokenOnOne;
-    // openTokenOnOne should always work for dice value 1, regardless of start mode
-    if (diceValue == 1 && rules.openTokenOnOne) return true;
-    return false;
+    if (rules.startCoinsInBase) {
+      return diceValue == 6; // Only 6 opens if Start at 6 is selected
+    } else {
+      return diceValue == 1; // Only 1 opens if Start at 1 is selected
+    }
   }
 
   static int getPlayerStartPosition(PlayerColor color) {
@@ -116,6 +116,7 @@ class LudoGameLogic {
 
     if (totalSteps > mainBoardSize - 2) {
       // RULE: Must capture to enter home lane
+      // Check the rule from settings
       if (rules.mustCaptureToEnterHome && !hasCaptured) {
         // Player hasn't captured any coin yet, keep circling the board
         return (token.position + diceValue) % mainBoardSize;
@@ -196,28 +197,15 @@ class LudoGameLogic {
         .where((t) => canTokenBeMoved(t, diceValue, rules: rules))
         .toList();
 
-    if (candidates.isEmpty) return [];
-
-    // RULE: Must bring a coin out on 1 (if enabled and possible)
-    if (diceValue == 1 && rules.openTokenOnOne) {
+    // RULE: Must bring a coin out on 1 or 6 based on rules
+    if (LudoGameLogic.canOpenTokenOnDice(diceValue, rules)) {
       final baseTokens = candidates.where((t) => t.position == -1).toList();
       if (baseTokens.isNotEmpty) {
         return baseTokens; // Forced to move tokens out of base
       }
     }
 
-    if (!rules.mustCutIfCuttable || allPlayers == null) {
-      return candidates;
-    }
-
-    final capturingTokens = candidates
-        .where(
-          (token) =>
-              canTokenCapture(token, diceValue, allPlayers, rules: rules, hasCaptured: player.hasCaptured),
-        )
-        .toList();
-
-    return capturingTokens.isNotEmpty ? capturingTokens : candidates;
+    return candidates;
   }
 
   static List<Token> getTokensAtPosition(
@@ -304,6 +292,10 @@ class LudoGameLogic {
         newPos,
         player.color,
       );
+      
+      // Auto-kill disabled. In Ludo, if you land on an opponent, you capture it.
+      // If the user wants a choice, it would require a separate UI dialog.
+      // For now, I will keep the kill logic but mark it clearly.
       if (victims.isNotEmpty &&
           canCaptureOnPosition(
             gameState.players,
@@ -313,7 +305,7 @@ class LudoGameLogic {
           )) {
         killTokensAtPosition(gameState.players, newPos, player.color);
         outcome.captured = true;
-        player.hasCaptured = true; // Mark player as having captured a coin
+        player.hasCaptured = true;
       }
     }
 
@@ -357,6 +349,65 @@ class LudoGameLogic {
 
   static int getNextPosition(Token token, int diceValue) =>
       calculateNewPosition(token, diceValue, token.playerColor);
+
+  /// Returns the list of absolute positions a token visits during a move.
+  static List<int> calculateMovePath(
+    Token token,
+    int steps,
+    PlayerColor color, {
+    LudoRuleSettings rules = const LudoRuleSettings(),
+    bool hasCaptured = true,
+  }) {
+    if (steps <= 0) return [];
+    
+    // If opening from base, path is just the start position
+    if (token.position == -1) {
+      if (canOpenTokenOnDice(steps, rules)) {
+        return [getPlayerStartPosition(color)];
+      }
+      return [];
+    }
+
+    final List<int> path = [];
+    int currentPos = token.position;
+    bool currentInHome = token.isInHome;
+
+    for (int i = 1; i <= steps; i++) {
+      // Logic simplified: move one step at a time
+      // This matches how calculateNewPosition works but step-by-step
+      
+      if (currentInHome) {
+        final finalIndex = mainBoardSize + homePathSize - 1;
+        if (currentPos < finalIndex) {
+          currentPos++;
+        } else {
+          // overshot/reached end, stop path
+          break;
+        }
+      } else {
+        final int startPos = getPlayerStartPosition(color);
+        final int stepsFromStart = (currentPos - startPos + mainBoardSize) % mainBoardSize;
+        
+        if (stepsFromStart == mainBoardSize - 2) {
+          // At the entrance to home lane
+          // Check the rule from settings
+          if (rules.mustCaptureToEnterHome && !hasCaptured) {
+            // Keep circling
+            currentPos = (currentPos + 1) % mainBoardSize;
+          } else {
+            // Enter home path
+            currentPos = mainBoardSize; // first home cell
+            currentInHome = true;
+          }
+        } else {
+          currentPos = (currentPos + 1) % mainBoardSize;
+        }
+      }
+      path.add(currentPos);
+    }
+    
+    return path;
+  }
 
   static bool willEnterWinningPath(Token token, int diceValue) {
     final newPos = calculateNewPosition(token, diceValue, token.playerColor);
@@ -486,7 +537,14 @@ class GameController {
 
     bool forceEndTurn = false;
 
-    if (LudoGameLogic.isBonusDice(diceValue, rules)) {
+    if (diceValue == 6 && rules.extraTurnOnSix) {
+      keepTurn = true;
+    }
+    if (diceValue == 1 && rules.extraTurnOnOne) {
+      keepTurn = true;
+    }
+
+    if (LudoGameLogic.canOpenTokenOnDice(diceValue, rules)) {
       gameState.currentPlayer.consecutiveSixes++;
 
       if (gameState.currentPlayer.consecutiveSixes >= 3) {
@@ -495,8 +553,7 @@ class GameController {
         }
         gameState.currentPlayer.consecutiveSixes = 0;
         forceEndTurn = true;
-      } else if (rules.extraTurnOnSix) {
-        keepTurn = true;
+        keepTurn = false;
       }
     } else {
       gameState.currentPlayer.consecutiveSixes = 0;
@@ -608,6 +665,42 @@ class GameController {
         token.isKilled = false;
         token.isInHome = false;
       }
+    }
+
+    onGameStateChanged?.call();
+  }
+
+  /// Removes a player from the active game.
+  /// If the current turn was theirs, moves to next player.
+  void removePlayer(String playerId) {
+    final players = gameState.players;
+    final int indexToRemove = players.indexWhere((p) => p.id == playerId);
+    
+    if (indexToRemove == -1 || players.length <= 2) return;
+
+    final bool isRemovingCurrentPlayer = gameState.currentPlayerIndex == indexToRemove;
+    
+    // Clear tokens of removed player
+    for (final token in players[indexToRemove].tokens) {
+      token.position = -1;
+      token.isInHome = false;
+    }
+    
+    players.removeAt(indexToRemove);
+    
+    // Adjust currentPlayerIndex
+    if (isRemovingCurrentPlayer) {
+      if (gameState.currentPlayerIndex >= players.length) {
+        gameState.currentPlayerIndex = 0;
+      }
+      // Start next turn
+      gameState.diceRolled = false;
+      gameState.canMove = false;
+      gameState.diceValue = 0;
+      players[gameState.currentPlayerIndex].isCurrentTurn = true;
+      onTurnChanged?.call(players[gameState.currentPlayerIndex]);
+    } else if (indexToRemove < gameState.currentPlayerIndex) {
+      gameState.currentPlayerIndex--;
     }
 
     onGameStateChanged?.call();

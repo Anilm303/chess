@@ -16,6 +16,7 @@ class LudoRuleSettings {
   final bool showSafeCells;
   final bool openTokenOnOne;
   final bool openTokenOnSix;
+  final bool extraTurnOnOne;
   final bool extraTurnOnSix;
   final bool extraTurnOnCapture;
   final bool extraTurnOnHome;
@@ -31,6 +32,7 @@ class LudoRuleSettings {
     this.showSafeCells = true,
     this.openTokenOnOne = false,
     this.openTokenOnSix = true,
+    this.extraTurnOnOne = false,
     this.extraTurnOnSix = true,
     this.extraTurnOnCapture = true,
     this.extraTurnOnHome = true,
@@ -47,6 +49,7 @@ class LudoRuleSettings {
     bool? showSafeCells,
     bool? openTokenOnOne,
     bool? openTokenOnSix,
+    bool? extraTurnOnOne,
     bool? extraTurnOnSix,
     bool? extraTurnOnCapture,
     bool? extraTurnOnHome,
@@ -62,6 +65,7 @@ class LudoRuleSettings {
       showSafeCells: showSafeCells ?? this.showSafeCells,
       openTokenOnOne: openTokenOnOne ?? this.openTokenOnOne,
       openTokenOnSix: openTokenOnSix ?? this.openTokenOnSix,
+      extraTurnOnOne: extraTurnOnOne ?? this.extraTurnOnOne,
       extraTurnOnSix: extraTurnOnSix ?? this.extraTurnOnSix,
       extraTurnOnCapture: extraTurnOnCapture ?? this.extraTurnOnCapture,
       extraTurnOnHome: extraTurnOnHome ?? this.extraTurnOnHome,
@@ -85,6 +89,7 @@ class LudoRuleSettings {
       showSafeCells: json['showSafeCells'] as bool? ?? true,
       openTokenOnOne: json['openTokenOnOne'] as bool? ?? false,
       openTokenOnSix: json['openTokenOnSix'] as bool? ?? true,
+      extraTurnOnOne: json['extraTurnOnOne'] as bool? ?? false,
       extraTurnOnSix: json['extraTurnOnSix'] as bool? ?? true,
       extraTurnOnCapture: json['extraTurnOnCapture'] as bool? ?? true,
       extraTurnOnHome: json['extraTurnOnHome'] as bool? ?? true,
@@ -105,6 +110,7 @@ class LudoRuleSettings {
       'showSafeCells': showSafeCells,
       'openTokenOnOne': openTokenOnOne,
       'openTokenOnSix': openTokenOnSix,
+      'extraTurnOnOne': extraTurnOnOne,
       'extraTurnOnSix': extraTurnOnSix,
       'extraTurnOnCapture': extraTurnOnCapture,
       'extraTurnOnHome': extraTurnOnHome,
